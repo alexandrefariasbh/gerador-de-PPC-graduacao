@@ -52,12 +52,14 @@ A matriz mostra o curso como um fluxograma, no formato usado pelos colegiados: u
 
 Vários professores podem trabalhar no mesmo PPC ao mesmo tempo. Cada alteração aparece para os outros em poucos segundos.
 
-1. Clique em **Equipe** e entre com a sua **conta Google pessoal** (por exemplo, @gmail.com). Quem não tem conta Google pode entrar com qualquer e-mail pessoal e uma senha criada só para o gerador, confirmando pelo link que chega no e-mail. Não é preciso usar o e-mail institucional.
-2. Com o PPC aberto, clique em **Compartilhar este PPC**. Ele passa a ficar guardado na nuvem.
-3. Convide os colegas pelo e-mail que eles usam para entrar (o Gmail, por exemplo) e envie a eles o **link do PPC**. Quem abre o link e entra com o e-mail convidado cai direto no PPC. Quem não foi convidado não consegue abrir.
-4. Em **Equipe**, você vê quem é membro e quem está on-line. No cabeçalho aparecem as iniciais de quem está on-line; no menu lateral e na lista de disciplinas, as iniciais mostram onde cada pessoa está editando.
+1. Ao abrir o gerador, entre com a sua **conta Google pessoal** (Gmail). O e-mail institucional não é usado. O gerador recebe só o nome e o e-mail.
+2. Com o PPC aberto, clique em **Equipe → Compartilhar este PPC**. Ele passa a ficar guardado na nuvem.
+3. Em **Equipe**, copie o **link do PPC** e envie aos colegas (por e-mail ou WhatsApp). Quem abre o link e entra com a conta Google passa a fazer parte da equipe e já cai no PPC. Não é preciso convidar um por um.
+4. Em **Equipe**, você vê quem participa e quem está on-line, e pode **remover** alguém (a pessoa perde o acesso, mesmo tendo o link). No cabeçalho aparecem as iniciais de quem está on-line; no menu lateral e na lista de disciplinas, as iniciais mostram onde cada pessoa está editando.
 
-As alterações são gravadas campo a campo. Duas pessoas editando campos diferentes (a ementa de uma disciplina e a bibliografia de outra, por exemplo) não se atrapalham. Se duas pessoas mudarem o mesmo campo ao mesmo tempo, vale a última alteração, e o gerador avisa quando há outra pessoa na mesma tela. **Salvar**, **Abrir** e **Gerar documentos** continuam funcionando normalmente, e **Salvar** é uma boa forma de guardar uma cópia de segurança.
+As alterações são gravadas campo a campo. Duas pessoas editando campos diferentes não se atrapalham; se mudarem o mesmo campo ao mesmo tempo, vale a última alteração, e o gerador avisa quando há outra pessoa na mesma tela. **Salvar**, **Abrir** e **Gerar documentos** continuam funcionando normalmente, e **Salvar** é uma boa cópia de segurança.
+
+A cópia do `index.html` aberta direto no computador funciona sem login (e sem a edição em equipe).
 
 ### Como ativar (feito uma vez, por quem administra o gerador)
 
@@ -65,12 +67,12 @@ A edição em equipe usa o Firebase Realtime Database, do Google, no plano gratu
 
 1. Em https://console.firebase.google.com, crie um projeto (por exemplo, `gerador-ppc-ufcimg`). O Google Analytics pode ficar desligado.
 2. Em **Criação → Realtime Database**, crie o banco no **modo bloqueado**. Na aba **Regras**, apague o conteúdo, cole o do arquivo `firebase-regras.json` deste repositório e clique em **Publicar**.
-3. Em **Authentication → Método de login**, ative o **Google** e, para quem não tem conta Google, **E-mail/senha** (só a primeira chave; o “link do e-mail” fica desligado).
+3. Em **Authentication → Método de login**, ative o **Google**.
 4. Em **Authentication → Configurações → Domínios autorizados**, adicione `alexandrefariasbh.github.io`.
 5. Em **Configurações do projeto → Seus apps**, adicione um app **Web** (`</>`) e copie o bloco `firebaseConfig`.
 6. No repositório, crie o arquivo `colab.json` a partir de `colab.exemplo.json`, preenchendo com os valores copiados. Confira se o `databaseURL` está lá; ele aparece no topo da página do Realtime Database.
 
-O `colab.json` não é uma senha: ele só diz ao gerador qual projeto usar. Quem controla o acesso são as regras publicadas no passo 2: só membros convidados leem e alteram cada PPC. Se um dia quiser restringir a um domínio de e-mail, informe-o em `dominios` no `colab.json`.
+O `colab.json` não é uma senha: ele só diz ao gerador qual projeto usar. Quem controla o acesso são as regras publicadas no passo 2: só os membros de cada PPC (quem entrou pelo link e não foi removido) leem e alteram o PPC. Em **Authentication → Usuários**, você vê quem já entrou no gerador. Se um dia quiser restringir a um domínio de e-mail, informe-o em `dominios` no `colab.json`.
 
 ## O que o gerador monta sozinho
 
@@ -119,7 +121,7 @@ O limite de 8.000 caracteres por seção vem do modelo de PPC da IN DIRGRAD nº 
 
 ## Onde ficam os dados
 
-Tudo o que você digita fica salvo apenas no seu navegador. Nada é enviado para servidores, a não ser os PPCs que você compartilhar em **Equipe**, que ficam no Firebase com acesso restrito aos convidados. Por isso:
+Tudo o que você digita fica salvo apenas no seu navegador. Nada é enviado para servidores, a não ser os PPCs que você compartilhar em **Equipe**, que ficam no Firebase com acesso restrito à equipe de cada PPC. Por isso:
 
 - para continuar em outro computador, ou passar o projeto a um colega, use **Salvar**. Ele gera um arquivo no seu computador, que depois pode ser aberto em **Abrir**;
 - se você limpar os dados do navegador, o rascunho se perde, então salve o projeto com frequência;

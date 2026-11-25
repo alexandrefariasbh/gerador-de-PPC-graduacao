@@ -2107,7 +2107,7 @@ function header() {
   $('#hdrCred').innerHTML = `${h(AUTOR.nome)} · <a href="${h(AUTOR.linkedin)}" target="_blank" rel="noopener">LinkedIn</a>`;
   $('#hdrVer').textContent = 'v' + VERSAO + (VERSAO_TAG ? ' ' + VERSAO_TAG : ''); $('#hdrVer').title = `Versão ${VERSAO}${VERSAO_TAG ? ' ' + VERSAO_TAG : ''} de ${VERSAO_DATA}.`;
   if (window.PPC_LOGO && !$('#hdrLogo').src) $('#hdrLogo').src = PPC_LOGO.dataURL;
-  $('#hdrBtns').innerHTML = [['bNovo', 'Novo', 'Começar um PPC em branco ou a partir do PPC existente', IC.novo], ['bAbrir', 'Abrir', 'Abre um projeto salvo no seu computador', IC.abrir], ['bSalvar', 'Salvar', 'Guarda o projeto num arquivo no seu computador', IC.salvar], ['bImportar', 'Importar PPC', 'Ler um PPC de graduação pronto (PDF ou Word) e usá-lo como base', IC.importar || IC.abrir], ['bEquipe', 'Equipe', 'Trabalhar no mesmo PPC com outros professores, ao mesmo tempo', IC.equipe], ['bShare', 'Compartilhar o gerador de PPC', 'Copiar o link do gerador para enviar a colegas', IC.share]]
+  $('#hdrBtns').innerHTML = [['bNovo', 'Novo', 'Começar um PPC em branco ou a partir do PPC existente', IC.novo], ['bAbrir', 'Abrir', 'Abre um projeto salvo no seu computador', IC.abrir], ['bSalvar', 'Salvar', 'Guarda o projeto num arquivo no seu computador', IC.salvar], ['bImportar', 'Importar PPC', 'Ler um PPC de graduação pronto (PDF ou Word) e usá-lo como base', IC.importar || IC.abrir], ['bComent', 'PPC comentado', 'Mostra o PPC gerado aqui, em PDF, com as pendências destacadas em amarelo e comentadas no próprio documento', IC.validar || IC.prev], ['bEquipe', 'Equipe', 'Trabalhar no mesmo PPC com outros professores, ao mesmo tempo', IC.equipe], ['bShare', 'Compartilhar o gerador de PPC', 'Copiar o link do gerador para enviar a colegas', IC.share]]
     .map(([id, t, tt, ic]) => `<button class="tb${id === 'bNovo' ? ' pri' : ''}" id="${id}" title="${tt}">${ic}<span>${t}</span></button>`).join('');
 }
 function revalidate() {
@@ -2116,7 +2116,10 @@ function revalidate() {
   $('#hdrStatus').innerHTML = e ? `<span class="pill e">${e} pendência${e > 1 ? 's' : ''}</span> ${w ? `<span class="pill w">${w} aviso${w > 1 ? 's' : ''}</span>` : ''}` : w ? `<span class="pill w">${w} aviso${w > 1 ? 's' : ''}</span>` : '<span class="pill o">Pronto para submissão</span>';
   $('#hdrCurso').textContent = P.id.curso || 'Projeto sem nome';
   renderNav();
-  $$('[data-iss]').forEach(el => { el.innerHTML = issHTML(filtroIss(el.dataset.iss)); });
+  $$('[data-iss]').forEach(el => {
+    const alvo = String(el.dataset.iss || '').split(/[|~!]/)[0].replace(/^ref:.*/, '');
+    el.innerHTML = issHTML(filtroIss(el.dataset.iss), alvo || PASSO_SEC[step] || '');
+  });
   if (step === 'disc') atualizaListaDisc();
   if (step === 'ch') { const s = $('#q3'); if (s) s.innerHTML = quadro3HTML(); }
   if (step === 'eixos') $$('[data-chEixo]').forEach(el => { const x = G.calc(P).porEixo.find(q => q.e.id === el.dataset.cheixo); if (x) el.textContent = `${G.fmtH(x.h)} h obrigatórias · ${x.ha} h/a em disciplinas`; });
@@ -2126,10 +2129,20 @@ function filtroIss(spec) {
   const [sec, modo] = spec.split('|');
   return ISS.filter(i => sec.split(',').includes(i.sec) && (modo === 'geral' ? !i.ref : true));
 }
-function issHTML(list) {
-  if (!list.length) return '<div class="okline">✓ Sem pendências neste item.</div>';
-  return '<ul class="iss">' + list.map(i => `<li class="${i.sev} go" data-goiss="${ISS.indexOf(i)}"><span>${i.sev === 'erro' ? '●' : '▲'}</span><span class="m">${h(i.msg)} <span class="ir">ir ›</span></span>${i.fonte ? `<a href="#" class="flink" data-fonte="${ISS.indexOf(i)}" title="Ver o trecho da norma">📄 ${h(i.fonte)}</a>` : ''}</li>`).join('') + '</ul>';
+function issHTML(list, sec) {
+  const pdf = !!(window.PPC_VER_ISS && P && P.id);
+  if (!list.length) return pdf && sec
+    ? `<a href="#" class="okline go" data-anppcsec="${h(sec)}">✓ Sem pendências neste item. <b>Ver este item no PPC em PDF ›</b></a>`
+    : '<div class="okline">✓ Sem pendências neste item.</div>';
+  return '<ul class="iss">' + list.map(i => {
+    const k = ISS.indexOf(i);
+    const atalho = pdf
+      ? ` <a href="#" class="ir" data-goiss="${k}" title="Ir para o campo a corrigir">ir ›</a> <a href="#" class="ir pdf" data-anppc="${k}" title="Ver o ponto no PPC em PDF, comentado">ver no PDF ›</a>`
+      : ' <span class="ir">ir ›</span>';
+    return `<li class="${i.sev} go"${pdf ? '' : ` data-goiss="${k}"`}><span>${i.sev === 'erro' ? '●' : '▲'}</span><span class="m">${h(i.msg)}${atalho}</span>${i.fonte ? `<a href="#" class="flink" data-fonte="${k}" title="Ver o trecho da norma">📄 ${h(i.fonte)}</a>` : ''}</li>`;
+  }).join('') + '</ul>';
 }
+const PASSO_SEC = {}; STEPS.forEach(([k, , secs]) => { if (secs && secs.length) PASSO_SEC[k] = secs[0]; });
 function renderNav() {
   const com = STEPS.filter(x => x[2] && !(x[0] === 'comp' && P.id.tipoCurso !== 'engenharia'));
   const okN = com.filter(([, , secs]) => !ISS.some(x => secs.includes(x.sec) && x.sev === 'erro')).length;
@@ -2614,6 +2627,7 @@ function vGerar() {
     <div class="card"><h3>Matriz curricular visual (PDF)</h3><p>O fluxograma do curso em folha A3 deitada, com as cores dos eixos, os pré e correquisitos, as atividades por período e o quadro-resumo, para levar ao colegiado ou divulgar aos estudantes.</p><button class="pri" data-act="mvPdf">Arquivo PDF</button></div>
     <div class="card"><h3>Arquivo do projeto (.json)</h3><p>O projeto completo para abrir de novo no gerador (botão <b>Abrir</b>), continuar depois ou enviar a um colega.</p><button class="pri" data-act="gJson">Baixar arquivo do projeto</button></div>
   </div>
+  ${typeof equipeCard === 'function' ? equipeCard() : ''}
   <p class="muted" style="margin-top:14px">Guarde também o arquivo do projeto (botão <b>Salvar</b> no topo) para continuar depois ou passar a um colega.</p>`;
 }
 const LEIS = [
@@ -2638,9 +2652,9 @@ async function docBlob(arq) {
   if (el) return new Blob([Uint8Array.from(atob(el.textContent.trim()), c => c.charCodeAt(0))], { type: 'application/pdf' });
   const r = await fetch('docs/' + arq); if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob();
 }
-const README_MD = "# Gerador de PPC para Cursos de Gradua\u00e7\u00e3o\n\nEste \u00e9 um gerador de Projeto Pedag\u00f3gico de Curso (PPC) para os cursos de gradua\u00e7\u00e3o da Universidade Federal de Ci\u00eancia e Inova\u00e7\u00e3o de Minas Gerais (UFCIMG), o antigo CEFET-MG. Nesta primeira vers\u00e3o, ele atende aos cursos de Engenharia.\n\nA ideia deste gerador \u00e9 que as coordena\u00e7\u00f5es de curso e os N\u00facleos Docentes Estruturantes produzam PPCs institucionais padronizados, todos no mesmo formato: o modelo da Instru\u00e7\u00e3o Normativa DIRGRAD n\u00ba 01/2023, com os mesmos quadros, carga hor\u00e1ria dentro das normas, disciplinas equalizadas conforme as resolu\u00e7\u00f5es do Conselho de Gradua\u00e7\u00e3o e refer\u00eancias em ABNT. A coordena\u00e7\u00e3o preenche o conte\u00fado, e o documento sai pronto, no padr\u00e3o institucional.\n\n## Como funciona\n\nO gerador abre direto no navegador, sem instalar nada e sem login. Funciona nas vers\u00f5es atuais do Chrome, Edge, Firefox e Safari.\n\nAo abrir, ele come\u00e7a em branco. Em **Novo**, voc\u00ea escolhe come\u00e7ar em branco, importar o PPC vigente do curso ou partir de um PPC existente. Depois, segue as etapas do menu lateral:\n\n1. **Identifica\u00e7\u00e3o e capa:** curso, campus, turno, vagas, integraliza\u00e7\u00e3o, dirigentes, comiss\u00e3o, NDE e colegiado.\n2. **Textos do projeto:** as se\u00e7\u00f5es 1 a 7 do modelo da IN DIRGRAD n\u00ba 01/2023, com orienta\u00e7\u00e3o em cada uma e contador de caracteres (m\u00e1ximo de 8.000 por se\u00e7\u00e3o).\n3. **Compet\u00eancias do egresso:** as compet\u00eancias C1, C2\u2026 da DCN das engenharias. Um bot\u00e3o inclui as oito compet\u00eancias gerais do art. 4\u00ba da Resolu\u00e7\u00e3o CNE/CES n\u00ba 2/2019.\n4. **Eixos de conte\u00fados:** nome, objetivos, compet\u00eancias e ementa de cada eixo.\n5. **Disciplinas:** eixo, per\u00edodo, horas-aula te\u00f3ricas e pr\u00e1ticas, \u00e1rea de forma\u00e7\u00e3o da DCN, caracter\u00edstica, compet\u00eancias, pr\u00e9 e correquisitos, ementa e bibliografia.\n6. **Matriz curricular visual:** o curso em fluxograma, per\u00edodo a per\u00edodo, para avaliar e remanejar as disciplinas.\n7. **Atividades e carga hor\u00e1ria:** optativas, eletivas, atividades complementares, extens\u00e3o, Projeto Final de Curso e est\u00e1gio.\n8. **Pessoal docente e NDE:** professores e composi\u00e7\u00e3o do N\u00facleo Docente Estruturante.\n9. **Pend\u00eancias:** a confer\u00eancia autom\u00e1tica de todo o projeto.\n10. **Gerar documentos:** o PPC pronto em PDF ou .docx.\n\n## Importar o PPC vigente e reestruturar\n\nO bot\u00e3o **Importar PPC** (ou **Novo \u2192 Importar o PPC vigente do curso**) l\u00ea um PPC de gradua\u00e7\u00e3o j\u00e1 pronto, em PDF ou Word (.docx), no formato da IN DIRGRAD n\u00ba 01/2023. O gerador aproveita:\n\n- a ficha de identifica\u00e7\u00e3o do curso;\n- as comiss\u00f5es, o NDE, o colegiado e a lista de siglas;\n- os textos de todas as se\u00e7\u00f5es;\n- as compet\u00eancias do egresso;\n- os eixos do Quadro 1, com objetivos, compet\u00eancias e ementas;\n- as disciplinas do Quadro 2, com eixo, per\u00edodo, carga hor\u00e1ria, caracter\u00edstica, \u00e1rea de forma\u00e7\u00e3o, compet\u00eancias, pr\u00e9 e correquisitos e ementa;\n- a carga hor\u00e1ria das atividades do Quadro 3;\n- a bibliografia do Ap\u00eandice I.\n\nAntes de usar, o gerador mostra um resumo do que leu. Depois, \u00e9 s\u00f3 editar o que muda na reestrutura\u00e7\u00e3o e gerar o PPC novo. O PPC lido fica guardado como **PPC anterior**, para refer\u00eancia. PDFs digitalizados (imagem) n\u00e3o t\u00eam texto para ler; nesse caso, use o .docx.\n\n## Matriz curricular visual\n\nA matriz mostra o curso como um fluxograma, no formato usado pelos colegiados: uma coluna por per\u00edodo, com a carga hor\u00e1ria do semestre e a acumulada. Cada cart\u00e3o traz o c\u00f3digo da disciplina, a carga hor\u00e1ria, o n\u00famero sequencial e os pr\u00e9 e correquisitos.\n\n- **Clique em um cart\u00e3o** para ver todos os detalhes da disciplina num painel lateral e edit\u00e1-la ali mesmo. As disciplinas equalizadas (\ud83d\udd12) aparecem s\u00f3 para leitura: nome, ementa, carga hor\u00e1ria, pr\u00e9 e correquisitos e bibliografia seguem a resolu\u00e7\u00e3o.\n- **Arraste um cart\u00e3o** para outro per\u00edodo (ou para as optativas) para remanejar. As cargas hor\u00e1rias se atualizam na hora.\n- Ao passar o mouse, os pr\u00e9-requisitos ficam em azul, os correquisitos em verde e as disciplinas que dependem dela em laranja. Conflitos aparecem em vermelho.\n- Em **Atividades por per\u00edodo**, voc\u00ea indica onde entram as a\u00e7\u00f5es de extens\u00e3o (AEx), as optativas, o est\u00e1gio e o Projeto Final de Curso.\n- Voc\u00ea escolhe as cores (por eixo, \u00e1rea de forma\u00e7\u00e3o, caracter\u00edstica ou natureza), a unidade (horas ou horas-aula) e como os pr\u00e9-requisitos s\u00e3o indicados (n\u00famero sequencial ou c\u00f3digo).\n- O quadro-resumo traz os componentes curriculares, a carga hor\u00e1ria total e a data de aprova\u00e7\u00e3o pelo colegiado.\n- **Imprimir / salvar em PDF** gera a matriz em folha A3 deitada.\n\n## Trabalho em equipe (edi\u00e7\u00e3o simult\u00e2nea)\n\nV\u00e1rios professores podem trabalhar no mesmo PPC ao mesmo tempo. Cada altera\u00e7\u00e3o aparece para os outros em poucos segundos.\n\n1. Ao abrir o gerador, entre com a sua **conta Google pessoal** (Gmail). O e-mail institucional n\u00e3o \u00e9 usado. O gerador recebe s\u00f3 o nome e o e-mail.\n2. Com o PPC aberto, clique em **Equipe \u2192 Compartilhar este PPC**. Ele passa a ficar guardado na nuvem.\n3. Em **Equipe**, copie o **link do PPC** e envie aos colegas (por e-mail ou WhatsApp). Quem abre o link e entra com a conta Google passa a fazer parte da equipe e j\u00e1 cai no PPC. N\u00e3o \u00e9 preciso convidar um por um.\n4. Em **Equipe**, voc\u00ea v\u00ea quem participa e quem est\u00e1 on-line, e pode **remover** algu\u00e9m (a pessoa perde o acesso, mesmo tendo o link). No cabe\u00e7alho aparecem as iniciais de quem est\u00e1 on-line; no menu lateral e na lista de disciplinas, as iniciais mostram onde cada pessoa est\u00e1 editando.\n\nAs altera\u00e7\u00f5es s\u00e3o gravadas campo a campo. Duas pessoas editando campos diferentes n\u00e3o se atrapalham; se mudarem o mesmo campo ao mesmo tempo, vale a \u00faltima altera\u00e7\u00e3o, e o gerador avisa quando h\u00e1 outra pessoa na mesma tela. **Salvar**, **Abrir** e **Gerar documentos** continuam funcionando normalmente, e **Salvar** \u00e9 uma boa c\u00f3pia de seguran\u00e7a.\n\nA c\u00f3pia do `index.html` aberta direto no computador funciona sem login (e sem a edi\u00e7\u00e3o em equipe).\n\n### Como ativar (feito uma vez, por quem administra o gerador)\n\nA edi\u00e7\u00e3o em equipe usa o Firebase Realtime Database, do Google, no plano gratuito (Spark), que n\u00e3o pede cart\u00e3o.\n\n1. Em https://console.firebase.google.com, crie um projeto (por exemplo, `gerador-ppc-ufcimg`). O Google Analytics pode ficar desligado.\n2. Em **Cria\u00e7\u00e3o \u2192 Realtime Database**, crie o banco no **modo bloqueado**. Na aba **Regras**, apague o conte\u00fado, cole o do arquivo `firebase-regras.json` deste reposit\u00f3rio e clique em **Publicar**.\n3. Em **Authentication \u2192 M\u00e9todo de login**, ative o **Google**.\n4. Em **Authentication \u2192 Configura\u00e7\u00f5es \u2192 Dom\u00ednios autorizados**, adicione `alexandrefariasbh.github.io`.\n5. Em **Configura\u00e7\u00f5es do projeto \u2192 Seus apps**, adicione um app **Web** (`</>`) e copie o bloco `firebaseConfig`.\n6. No reposit\u00f3rio, crie o arquivo `colab.json` a partir de `colab.exemplo.json`, preenchendo com os valores copiados. Confira se o `databaseURL` est\u00e1 l\u00e1; ele aparece no topo da p\u00e1gina do Realtime Database.\n\nO `colab.json` n\u00e3o \u00e9 uma senha: ele s\u00f3 diz ao gerador qual projeto usar. Quem controla o acesso s\u00e3o as regras publicadas no passo 2: s\u00f3 os membros de cada PPC (quem entrou pelo link e n\u00e3o foi removido) leem e alteram o PPC. Em **Authentication \u2192 Usu\u00e1rios**, voc\u00ea v\u00ea quem j\u00e1 entrou no gerador. Se um dia quiser restringir a um dom\u00ednio de e-mail, informe-o em `dominios` no `colab.json`. O gerador dos cursos t\u00e9cnicos usa o mesmo projeto do Firebase: basta copiar o mesmo `colab.json` para o reposit\u00f3rio dele.\n\n## O que o gerador monta sozinho\n\nA partir dos eixos, das disciplinas e das atividades, o gerador monta todos os quadros do modelo:\n\n- **Quadro 1:** eixos de conte\u00fados e atividades, com o desdobramento em disciplinas e atividades;\n- **Quadro 2:** apresenta\u00e7\u00e3o de cada disciplina;\n- **Quadro 3:** s\u00edntese da distribui\u00e7\u00e3o da carga hor\u00e1ria, com os percentuais;\n- **Quadro 4:** carga hor\u00e1ria obrigat\u00f3ria por eixo;\n- **Quadro 5:** disciplinas optativas;\n- **Quadro 6:** disciplinas por per\u00edodo, com carga semestral e acumulada;\n- **Quadro 7:** matriz curricular em fluxograma, numa folha deitada, no modelo da IN: cada disciplina num cart\u00e3o com c\u00f3digo, carga hor\u00e1ria, n\u00famero e pr\u00e9 e correquisitos, nas cores dos eixos, com as atividades (extens\u00e3o, optativas, est\u00e1gio e PFC) nos per\u00edodos indicados;\n- **Quadro 8:** rela\u00e7\u00e3o entre as compet\u00eancias do egresso e as disciplinas;\n- **Ap\u00eandice I:** bibliografia por disciplina.\n\nA numera\u00e7\u00e3o das disciplinas \u00e9 autom\u00e1tica, no formato da IN (01/1) ou no formato per\u00edodo.ordem/eixo (1.01/1). A carga hor\u00e1ria em horas \u00e9 calculada a partir das horas-aula de 50 minutos.\n\n## Disciplinas equalizadas\n\nEm **Disciplinas**, o bot\u00e3o **+ equalizada** abre o cat\u00e1logo das disciplinas equalizadas das Resolu\u00e7\u00f5es CGRAD n\u00ba 05, 06, 07, 08, 09 e 14/2022 (Computa\u00e7\u00e3o, Matem\u00e1tica, F\u00edsica, Qu\u00edmica e Humanidades e Ci\u00eancias Sociais Aplicadas). Ao incluir uma disciplina, o gerador preenche a ementa, a carga hor\u00e1ria, o per\u00edodo estimado e a bibliografia da Delibera\u00e7\u00e3o CGRAD n\u00ba 32/22 (campi Nova Su\u00ed\u00e7a e Nova Gameleira), e liga os pr\u00e9 e correquisitos \u00e0s disciplinas que j\u00e1 est\u00e3o no projeto. Se a ementa ou a carga hor\u00e1ria de uma equalizada for alterada, o gerador avisa.\n\n## O que o gerador confere\n\nEnquanto voc\u00ea preenche, o gerador confere o projeto contra a IN DIRGRAD n\u00ba 01/2023 e n\u00ba 02/2023, a Resolu\u00e7\u00e3o CEPE n\u00ba 18/22, a DCN das engenharias e a Resolu\u00e7\u00e3o CNE/CES n\u00ba 7/2018. Ele avisa, por exemplo, quando:\n\n- a carga hor\u00e1ria total n\u00e3o chega a 3.600 horas;\n- a extens\u00e3o n\u00e3o alcan\u00e7a 10% da carga hor\u00e1ria total;\n- o est\u00e1gio tem menos de 160 horas;\n- uma se\u00e7\u00e3o passa de 8.000 caracteres;\n- uma disciplina n\u00e3o tem 3 t\u00edtulos de bibliografia b\u00e1sica e 5 de complementar;\n- um pr\u00e9-requisito n\u00e3o est\u00e1 em per\u00edodo anterior;\n- algum conte\u00fado b\u00e1sico obrigat\u00f3rio da DCN n\u00e3o aparece nas disciplinas;\n- uma compet\u00eancia n\u00e3o \u00e9 desenvolvida por nenhuma disciplina.\n\nCada aviso tem um atalho que leva direto ao campo a ser corrigido. A norma citada no aviso tamb\u00e9m \u00e9 clic\u00e1vel: o gerador abre o documento (IN DIRGRAD, resolu\u00e7\u00e3o do CGRAD ou delibera\u00e7\u00e3o) na p\u00e1gina do trecho correspondente, com o trecho destacado em amarelo. As leis e resolu\u00e7\u00f5es federais abrem no site oficial.\n\nO limite de 8.000 caracteres por se\u00e7\u00e3o vem do modelo de PPC da IN DIRGRAD n\u00ba 01/2023 (Anexo II), que indica \u201cM\u00e1ximo de caracteres: 8000\u201d em cada se\u00e7\u00e3o. A pr\u00f3pria IN diz que esse limite \u00e9 sugerido, para manter o texto objetivo. Por isso, passar do limite gera um aviso, e n\u00e3o uma pend\u00eancia.\n\n## Recursos\n\n- **A partir de PPC existente:** em **Novo**, voc\u00ea pode abrir o PPC de Engenharia de Materiais (Campus Nova Su\u00ed\u00e7a, 2022) para se orientar, e edit\u00e1-lo e adapt\u00e1-lo ao seu curso. Ele vem sem nomes de pessoas.\n- **Pr\u00e9via do PPC:** mostra o documento sendo montado ao lado do formul\u00e1rio, atualizado enquanto voc\u00ea digita.\n- **Normas e documentos:** re\u00fane as Instru\u00e7\u00f5es Normativas DIRGRAD n\u00ba 01/2023, 02/2023 e 06/2026, as Resolu\u00e7\u00f5es CGRAD das disciplinas equalizadas (n\u00ba 05, 06, 07, 08, 09 e 14/2022), a Delibera\u00e7\u00e3o CGRAD n\u00ba 32/22 e os links da legisla\u00e7\u00e3o.\n- **Gerar documentos:** o PPC completo em PDF ou .docx, no padr\u00e3o institucional (com cabe\u00e7alho, rodap\u00e9 e a matriz em fluxograma numa folha deitada) ou no **Novo Layout** (proposta de visual moderno); a matriz curricular visual em PDF (folha A3, uma p\u00e1gina); e o arquivo do projeto (.json).\n- **Tutorial:** guia ilustrado, passo a passo, com todas as etapas; pode ser baixado em PDF.\n- **Sobre este gerador:** este texto, com o passo a passo de uso.\n- **Compartilhar o gerador de PPC:** copia o link do gerador para enviar a colegas.\n\n## Onde ficam os dados\n\nTudo o que voc\u00ea digita fica salvo apenas no seu navegador. Nada \u00e9 enviado para servidores, a n\u00e3o ser os PPCs que voc\u00ea compartilhar em **Equipe**, que ficam no Firebase com acesso restrito \u00e0 equipe de cada PPC. Por isso:\n\n- para continuar em outro computador, ou passar o projeto a um colega, use **Salvar**. Ele gera um arquivo no seu computador, que depois pode ser aberto em **Abrir**;\n- se voc\u00ea limpar os dados do navegador, o rascunho se perde, ent\u00e3o salve o projeto com frequ\u00eancia;\n- ao reabrir o gerador, ele come\u00e7a em branco e oferece **Continuar rascunho** caso haja trabalho anterior salvo naquele navegador.\n\n## No celular\n\nO gerador funciona tamb\u00e9m no celular e no tablet. Em telas pequenas, o menu de etapas fica no bot\u00e3o \u2630, no alto \u00e0 esquerda, e os formul\u00e1rios passam para uma coluna. As tabelas largas e a matriz rolam para o lado com o dedo. Como arrastar cart\u00f5es n\u00e3o funciona bem na tela de toque, use as setas \u25c0 \u25b6 (t\u00e9cnico) ou, na gradua\u00e7\u00e3o, toque no cart\u00e3o e escolha o per\u00edodo no painel. Para textos longos e para gerar o PPC final, o computador continua sendo mais confort\u00e1vel.\n\n## Vers\u00e3o\n\nA vers\u00e3o aparece no topo da tela, ao lado do t\u00edtulo. Se o navegador continuar mostrando uma vers\u00e3o antiga, recarregue a p\u00e1gina (Ctrl+Shift+R no Windows, Cmd+Shift+R no Mac).\n\n## Arquivos deste reposit\u00f3rio\n\n- **`index.html`**: o gerador completo, em um \u00fanico arquivo. \u00c9 o que o GitHub Pages publica.\n- **`README.md`**: este texto.\n- **`Tutorial-Gerador-PPC-Graduacao.pdf`**: o tutorial em PDF, baixado pelo bot\u00e3o do gerador.\n- **`colab.json`**: a configura\u00e7\u00e3o da edi\u00e7\u00e3o em equipe (criada a partir de `colab.exemplo.json`). Sem ele, o gerador funciona normalmente, s\u00f3 que sem a edi\u00e7\u00e3o em equipe.\n- **`firebase-regras.json`**: as regras de acesso que v\u00e3o no Firebase.\n\nO `index.html` tamb\u00e9m funciona sozinho: baixe o arquivo e abra com dois cliques, mesmo sem internet.\n\n## Sugest\u00f5es e problemas\n\nSugest\u00f5es, corre\u00e7\u00f5es e relatos de problemas s\u00e3o bem-vindos. Abra uma *issue* aqui no GitHub ou fale diretamente com o autor.\n\n## Autoria\n\nDesenvolvido pelo Prof. Alexandre Rodrigues Farias, do Departamento de Eletr\u00f4nica e Biom\u00e9dica da UFCIMG.\n\nLinkedIn: https://www.linkedin.com/in/alexandre-rodrigues-farias\n";
+const README_MD = "# Gerador de PPC para Cursos de Gradua\u00e7\u00e3o\n\nEste \u00e9 um gerador de Projeto Pedag\u00f3gico de Curso (PPC) para os cursos de gradua\u00e7\u00e3o da Universidade Federal de Ci\u00eancia e Inova\u00e7\u00e3o de Minas Gerais (UFCIMG), o antigo CEFET-MG. Nesta primeira vers\u00e3o, ele atende aos cursos de Engenharia.\n\nA ideia deste gerador \u00e9 que as coordena\u00e7\u00f5es de curso e os N\u00facleos Docentes Estruturantes produzam PPCs institucionais padronizados, todos no mesmo formato: o modelo da Instru\u00e7\u00e3o Normativa DIRGRAD n\u00ba 01/2023, com os mesmos quadros, carga hor\u00e1ria dentro das normas, disciplinas equalizadas conforme as resolu\u00e7\u00f5es do Conselho de Gradua\u00e7\u00e3o e refer\u00eancias em ABNT. A coordena\u00e7\u00e3o preenche o conte\u00fado, e o documento sai pronto, no padr\u00e3o institucional.\n\n## Como funciona\n\nO gerador abre direto no navegador, sem instalar nada e sem login. Funciona nas vers\u00f5es atuais do Chrome, Edge, Firefox e Safari.\n\nAo abrir, ele come\u00e7a em branco. Em **Novo**, voc\u00ea escolhe come\u00e7ar em branco, importar o PPC vigente do curso ou partir de um PPC existente. Depois, segue as etapas do menu lateral:\n\n1. **Identifica\u00e7\u00e3o e capa:** curso, campus, turno, vagas, integraliza\u00e7\u00e3o, dirigentes, comiss\u00e3o, NDE e colegiado.\n2. **Textos do projeto:** as se\u00e7\u00f5es 1 a 7 do modelo da IN DIRGRAD n\u00ba 01/2023, com orienta\u00e7\u00e3o em cada uma e contador de caracteres (m\u00e1ximo de 8.000 por se\u00e7\u00e3o).\n3. **Compet\u00eancias do egresso:** as compet\u00eancias C1, C2\u2026 da DCN das engenharias. Um bot\u00e3o inclui as oito compet\u00eancias gerais do art. 4\u00ba da Resolu\u00e7\u00e3o CNE/CES n\u00ba 2/2019.\n4. **Eixos de conte\u00fados:** nome, objetivos, compet\u00eancias e ementa de cada eixo.\n5. **Disciplinas:** eixo, per\u00edodo, horas-aula te\u00f3ricas e pr\u00e1ticas, \u00e1rea de forma\u00e7\u00e3o da DCN, caracter\u00edstica, compet\u00eancias, pr\u00e9 e correquisitos, ementa e bibliografia.\n6. **Matriz curricular visual:** o curso em fluxograma, per\u00edodo a per\u00edodo, para avaliar e remanejar as disciplinas.\n7. **Atividades e carga hor\u00e1ria:** optativas, eletivas, atividades complementares, extens\u00e3o, Projeto Final de Curso e est\u00e1gio.\n8. **Pessoal docente e NDE:** professores e composi\u00e7\u00e3o do N\u00facleo Docente Estruturante.\n9. **Pend\u00eancias:** a confer\u00eancia autom\u00e1tica de todo o projeto.\n10. **Gerar documentos:** o PPC pronto em PDF ou .docx.\n\n## Importar o PPC vigente e reestruturar\n\nO bot\u00e3o **Importar PPC** (ou **Novo \u2192 Importar o PPC vigente do curso**) l\u00ea um PPC de gradua\u00e7\u00e3o j\u00e1 pronto, em PDF ou Word (.docx), no formato da IN DIRGRAD n\u00ba 01/2023. O gerador aproveita:\n\n- a ficha de identifica\u00e7\u00e3o do curso;\n- as comiss\u00f5es, o NDE, o colegiado e a lista de siglas;\n- os textos de todas as se\u00e7\u00f5es;\n- as compet\u00eancias do egresso;\n- os eixos do Quadro 1, com objetivos, compet\u00eancias e ementas;\n- as disciplinas do Quadro 2, com eixo, per\u00edodo, carga hor\u00e1ria, caracter\u00edstica, \u00e1rea de forma\u00e7\u00e3o, compet\u00eancias, pr\u00e9 e correquisitos e ementa;\n- a carga hor\u00e1ria das atividades do Quadro 3;\n- a bibliografia do Ap\u00eandice I.\n\nAntes de usar, o gerador mostra um resumo do que leu. Depois, \u00e9 s\u00f3 editar o que muda na reestrutura\u00e7\u00e3o e gerar o PPC novo. O PPC lido fica guardado como **PPC anterior**, para refer\u00eancia. PDFs digitalizados (imagem) n\u00e3o t\u00eam texto para ler; nesse caso, use o .docx.\n\n## Matriz curricular visual\n\nA matriz mostra o curso como um fluxograma, no formato usado pelos colegiados: uma coluna por per\u00edodo, com a carga hor\u00e1ria do semestre e a acumulada. Cada cart\u00e3o traz o c\u00f3digo da disciplina, a carga hor\u00e1ria, o n\u00famero sequencial e os pr\u00e9 e correquisitos.\n\n- **Clique em um cart\u00e3o** para ver todos os detalhes da disciplina num painel lateral e edit\u00e1-la ali mesmo. As disciplinas equalizadas (\ud83d\udd12) aparecem s\u00f3 para leitura: nome, ementa, carga hor\u00e1ria, pr\u00e9 e correquisitos e bibliografia seguem a resolu\u00e7\u00e3o.\n- **Arraste um cart\u00e3o** para outro per\u00edodo (ou para as optativas) para remanejar. As cargas hor\u00e1rias se atualizam na hora.\n- Ao passar o mouse, os pr\u00e9-requisitos ficam em azul, os correquisitos em verde e as disciplinas que dependem dela em laranja. Conflitos aparecem em vermelho.\n- Em **Atividades por per\u00edodo**, voc\u00ea indica onde entram as a\u00e7\u00f5es de extens\u00e3o (AEx), as optativas, o est\u00e1gio e o Projeto Final de Curso.\n- Voc\u00ea escolhe as cores (por eixo, \u00e1rea de forma\u00e7\u00e3o, caracter\u00edstica ou natureza), a unidade (horas ou horas-aula) e como os pr\u00e9-requisitos s\u00e3o indicados (n\u00famero sequencial ou c\u00f3digo).\n- O quadro-resumo traz os componentes curriculares, a carga hor\u00e1ria total e a data de aprova\u00e7\u00e3o pelo colegiado.\n- **Imprimir / salvar em PDF** gera a matriz em folha A3 deitada.\n\n## Trabalho em equipe (edi\u00e7\u00e3o simult\u00e2nea)\n\nV\u00e1rios professores podem trabalhar no mesmo PPC ao mesmo tempo. Cada altera\u00e7\u00e3o aparece para os outros em poucos segundos.\n\n1. Ao abrir o gerador, entre com a sua **conta Google pessoal** (Gmail). O e-mail institucional n\u00e3o \u00e9 usado. O gerador recebe s\u00f3 o nome e o e-mail.\n2. Com o PPC aberto, clique em **Equipe \u2192 Compartilhar este PPC**. Ele passa a ficar guardado na nuvem.\n3. Em **Equipe**, copie o **link do PPC** e envie aos colegas (por e-mail ou WhatsApp). Quem abre o link e entra com a conta Google passa a fazer parte da equipe e j\u00e1 cai no PPC. N\u00e3o \u00e9 preciso convidar um por um.\n4. Em **Equipe**, voc\u00ea v\u00ea quem participa e quem est\u00e1 on-line, e pode **remover** algu\u00e9m (a pessoa perde o acesso, mesmo tendo o link). No cabe\u00e7alho aparecem as iniciais de quem est\u00e1 on-line; no menu lateral e na lista de disciplinas, as iniciais mostram onde cada pessoa est\u00e1 editando.\n\nAs altera\u00e7\u00f5es s\u00e3o gravadas campo a campo. Duas pessoas editando campos diferentes n\u00e3o se atrapalham; se mudarem o mesmo campo ao mesmo tempo, vale a \u00faltima altera\u00e7\u00e3o, e o gerador avisa quando h\u00e1 outra pessoa na mesma tela. **Salvar**, **Abrir** e **Gerar documentos** continuam funcionando normalmente, e **Salvar** \u00e9 uma boa c\u00f3pia de seguran\u00e7a.\n\nA c\u00f3pia do `index.html` aberta direto no computador funciona sem login (e sem a edi\u00e7\u00e3o em equipe).\n\n### Como ativar (feito uma vez, por quem administra o gerador)\n\nA edi\u00e7\u00e3o em equipe usa o Firebase Realtime Database, do Google, no plano gratuito (Spark), que n\u00e3o pede cart\u00e3o.\n\n1. Em https://console.firebase.google.com, crie um projeto (por exemplo, `gerador-ppc-ufcimg`). O Google Analytics pode ficar desligado.\n2. Em **Cria\u00e7\u00e3o \u2192 Realtime Database**, crie o banco no **modo bloqueado**. Na aba **Regras**, apague o conte\u00fado, cole o do arquivo `firebase-regras.json` deste reposit\u00f3rio e clique em **Publicar**.\n3. Em **Authentication \u2192 M\u00e9todo de login**, ative o **Google**.\n4. Em **Authentication \u2192 Configura\u00e7\u00f5es \u2192 Dom\u00ednios autorizados**, adicione `alexandrefariasbh.github.io`.\n5. Em **Configura\u00e7\u00f5es do projeto \u2192 Seus apps**, adicione um app **Web** (`</>`) e copie o bloco `firebaseConfig`.\n6. No reposit\u00f3rio, crie o arquivo `colab.json` a partir de `colab.exemplo.json`, preenchendo com os valores copiados. Confira se o `databaseURL` est\u00e1 l\u00e1; ele aparece no topo da p\u00e1gina do Realtime Database.\n\nO `colab.json` n\u00e3o \u00e9 uma senha: ele s\u00f3 diz ao gerador qual projeto usar. Quem controla o acesso s\u00e3o as regras publicadas no passo 2: s\u00f3 os membros de cada PPC (quem entrou pelo link e n\u00e3o foi removido) leem e alteram o PPC. Em **Authentication \u2192 Usu\u00e1rios**, voc\u00ea v\u00ea quem j\u00e1 entrou no gerador. Se um dia quiser restringir a um dom\u00ednio de e-mail, informe-o em `dominios` no `colab.json`. O gerador dos cursos t\u00e9cnicos usa o mesmo projeto do Firebase: basta copiar o mesmo `colab.json` para o reposit\u00f3rio dele.\n\n## O que o gerador monta sozinho\n\nA partir dos eixos, das disciplinas e das atividades, o gerador monta todos os quadros do modelo:\n\n- **Quadro 1:** eixos de conte\u00fados e atividades, com o desdobramento em disciplinas e atividades;\n- **Quadro 2:** apresenta\u00e7\u00e3o de cada disciplina;\n- **Quadro 3:** s\u00edntese da distribui\u00e7\u00e3o da carga hor\u00e1ria, com os percentuais;\n- **Quadro 4:** carga hor\u00e1ria obrigat\u00f3ria por eixo;\n- **Quadro 5:** disciplinas optativas;\n- **Quadro 6:** disciplinas por per\u00edodo, com carga semestral e acumulada;\n- **Quadro 7:** matriz curricular em fluxograma, numa folha deitada, no modelo da IN: cada disciplina num cart\u00e3o com c\u00f3digo, carga hor\u00e1ria, n\u00famero e pr\u00e9 e correquisitos, nas cores dos eixos, com as atividades (extens\u00e3o, optativas, est\u00e1gio e PFC) nos per\u00edodos indicados;\n- **Quadro 8:** rela\u00e7\u00e3o entre as compet\u00eancias do egresso e as disciplinas;\n- **Ap\u00eandice I:** bibliografia por disciplina.\n\nA numera\u00e7\u00e3o das disciplinas \u00e9 autom\u00e1tica, no formato da IN (01/1) ou no formato per\u00edodo.ordem/eixo (1.01/1). A carga hor\u00e1ria em horas \u00e9 calculada a partir das horas-aula de 50 minutos.\n\n## Disciplinas equalizadas\n\nEm **Disciplinas**, o bot\u00e3o **+ equalizada** abre o cat\u00e1logo das disciplinas equalizadas das Resolu\u00e7\u00f5es CGRAD n\u00ba 05, 06, 07, 08, 09 e 14/2022 (Computa\u00e7\u00e3o, Matem\u00e1tica, F\u00edsica, Qu\u00edmica e Humanidades e Ci\u00eancias Sociais Aplicadas). Ao incluir uma disciplina, o gerador preenche a ementa, a carga hor\u00e1ria, o per\u00edodo estimado e a bibliografia da Delibera\u00e7\u00e3o CGRAD n\u00ba 32/22 (campi Nova Su\u00ed\u00e7a e Nova Gameleira), e liga os pr\u00e9 e correquisitos \u00e0s disciplinas que j\u00e1 est\u00e3o no projeto. Se a ementa ou a carga hor\u00e1ria de uma equalizada for alterada, o gerador avisa.\n\n## O que o gerador confere\n\nEnquanto voc\u00ea preenche, o gerador confere o projeto contra a IN DIRGRAD n\u00ba 01/2023 e n\u00ba 02/2023, a Resolu\u00e7\u00e3o CEPE n\u00ba 18/22, a DCN das engenharias e a Resolu\u00e7\u00e3o CNE/CES n\u00ba 7/2018. Ele avisa, por exemplo, quando:\n\n- a carga hor\u00e1ria total n\u00e3o chega a 3.600 horas;\n- a extens\u00e3o n\u00e3o alcan\u00e7a 10% da carga hor\u00e1ria total;\n- o est\u00e1gio tem menos de 160 horas;\n- uma se\u00e7\u00e3o passa de 8.000 caracteres;\n- uma disciplina n\u00e3o tem 3 t\u00edtulos de bibliografia b\u00e1sica e 5 de complementar;\n- um pr\u00e9-requisito n\u00e3o est\u00e1 em per\u00edodo anterior;\n- algum conte\u00fado b\u00e1sico obrigat\u00f3rio da DCN n\u00e3o aparece nas disciplinas;\n- uma compet\u00eancia n\u00e3o \u00e9 desenvolvida por nenhuma disciplina.\n\nCada aviso tem um atalho que leva direto ao campo a ser corrigido. A norma citada no aviso tamb\u00e9m \u00e9 clic\u00e1vel: o gerador abre o documento (IN DIRGRAD, resolu\u00e7\u00e3o do CGRAD ou delibera\u00e7\u00e3o) na p\u00e1gina do trecho correspondente, com o trecho destacado em amarelo. As leis e resolu\u00e7\u00f5es federais abrem no site oficial.\n\nO limite de 8.000 caracteres por se\u00e7\u00e3o vem do modelo de PPC da IN DIRGRAD n\u00ba 01/2023 (Anexo II), que indica \u201cM\u00e1ximo de caracteres: 8000\u201d em cada se\u00e7\u00e3o. A pr\u00f3pria IN diz que esse limite \u00e9 sugerido, para manter o texto objetivo. Por isso, passar do limite gera um aviso, e n\u00e3o uma pend\u00eancia.\n\n## Recursos\n\n- **A partir de PPC existente:** em **Novo**, voc\u00ea pode abrir o PPC de Engenharia de Materiais (Campus Nova Su\u00ed\u00e7a, 2022) para se orientar, e edit\u00e1-lo e adapt\u00e1-lo ao seu curso. Ele vem sem nomes de pessoas.\n- **Pr\u00e9via do PPC:** mostra o documento sendo montado ao lado do formul\u00e1rio, atualizado enquanto voc\u00ea digita.\n- **Normas e documentos:** re\u00fane as Instru\u00e7\u00f5es Normativas DIRGRAD n\u00ba 01/2023, 02/2023 e 06/2026, as Resolu\u00e7\u00f5es CGRAD das disciplinas equalizadas (n\u00ba 05, 06, 07, 08, 09 e 14/2022), a Delibera\u00e7\u00e3o CGRAD n\u00ba 32/22 e os links da legisla\u00e7\u00e3o.\n- **Gerar documentos:** o PPC completo em PDF ou .docx, no padr\u00e3o institucional (com cabe\u00e7alho, rodap\u00e9 e a matriz em fluxograma numa folha deitada) ou no **Novo Layout** (proposta de visual moderno); a matriz curricular visual em PDF (folha A3, uma p\u00e1gina); e o arquivo do projeto (.json).\n- **Tutorial:** guia ilustrado, passo a passo, com todas as etapas; pode ser baixado em PDF.\n- **Sobre este gerador:** este texto, com o passo a passo de uso.\n- **Compartilhar o gerador de PPC:** copia o link do gerador para enviar a colegas.\n\n## Onde ficam os dados\n\nTudo o que voc\u00ea digita fica salvo apenas no seu navegador. Nada \u00e9 enviado para servidores, a n\u00e3o ser os PPCs que voc\u00ea compartilhar em **Equipe**, que ficam no Firebase com acesso restrito \u00e0 equipe de cada PPC. Por isso:\n\n- para continuar em outro computador, ou passar o projeto a um colega, use **Salvar**. Ele gera um arquivo no seu computador, que depois pode ser aberto em **Abrir**;\n- se voc\u00ea limpar os dados do navegador, o rascunho se perde, ent\u00e3o salve o projeto com frequ\u00eancia;\n- ao reabrir o gerador, ele come\u00e7a em branco e oferece **Continuar rascunho** caso haja trabalho anterior salvo naquele navegador.\n\n## No celular\n\nO gerador funciona tamb\u00e9m no celular e no tablet. Em telas pequenas, o menu de etapas fica no bot\u00e3o \u2630, no alto \u00e0 esquerda, e os formul\u00e1rios passam para uma coluna. As tabelas largas e a matriz rolam para o lado com o dedo. Como arrastar cart\u00f5es n\u00e3o funciona bem na tela de toque, use as setas \u25c0 \u25b6 (t\u00e9cnico) ou, na gradua\u00e7\u00e3o, toque no cart\u00e3o e escolha o per\u00edodo no painel. Para textos longos e para gerar o PPC final, o computador continua sendo mais confort\u00e1vel.\n\n## Vers\u00e3o\n\nA vers\u00e3o aparece no topo da tela, ao lado do t\u00edtulo. Se o navegador continuar mostrando uma vers\u00e3o antiga, recarregue a p\u00e1gina (Ctrl+Shift+R no Windows, Cmd+Shift+R no Mac).\n\n## Arquivos deste reposit\u00f3rio\n\n- **`index.html`**: o gerador completo, em um \u00fanico arquivo. \u00c9 o que o GitHub Pages publica.\n- **`README.md`**: este texto.\n- **`Tutorial-Gerador-PPC-Graduacao.pdf`**: o tutorial em PDF, baixado pelo bot\u00e3o do gerador.\n- **`colab.json`**: a configura\u00e7\u00e3o da edi\u00e7\u00e3o em equipe (criada a partir de `colab.exemplo.json`). Sem ele, o gerador funciona normalmente, s\u00f3 que sem a edi\u00e7\u00e3o em equipe.\n- **`firebase-regras.json`**: as regras de acesso que v\u00e3o no Firebase.\n\nO `index.html` tamb\u00e9m funciona sozinho: baixe o arquivo e abra com dois cliques, mesmo sem internet.\n\n## Sugest\u00f5es e problemas\n\nSugest\u00f5es, corre\u00e7\u00f5es e relatos de problemas s\u00e3o bem-vindos. Abra uma *issue* aqui no GitHub ou envie um e-mail para alexandrefarias@cefetmg.br.\n\n## Autoria\n\nDesenvolvido pelo Prof. Alexandre Rodrigues Farias, do Departamento de Eletr\u00f4nica e Biom\u00e9dica da UFCIMG. Sugest\u00f5es e problemas, envie um e-mail para alexandrefarias@cefetmg.br.\n\nLinkedIn: https://www.linkedin.com/in/alexandre-rodrigues-farias\n";
 function vSobre() {
-  const inl = t => h(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\*(.+?)\*/g, '<i>$1</i>').replace(/`(.+?)`/g, '<code>$1</code>').replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+  const inl = t => h(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\*(.+?)\*/g, '<i>$1</i>').replace(/`(.+?)`/g, '<code>$1</code>').replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>').replace(/([\w.+-]+@[\w-]+\.[\w.]{2,})/g, '<a href="mailto:$1">$1</a>');
   let out = '';
   README_MD.split(/\n(?=## )/).filter(x => !/^## Arquivos deste repositório/.test(x)).forEach((sec, i) => {
     let tit = '', html = '', lista = null; const fecha = () => { if (lista) { html += `</${lista}>`; lista = null; } };
@@ -2753,6 +2767,8 @@ document.addEventListener('click', async ev => {
   const hb = ev.target.closest('header button[id]'); if (hb) return headerClick(hb.id);
   const fb = ev.target.closest('[data-first]'); if (fb) { ev.preventDefault(); ev.stopPropagation(); return irPara(primeira(fb.dataset.first)); }
   const gi = ev.target.closest('[data-goiss]'); if (gi) { ev.preventDefault(); return irPara(ISS[+gi.dataset.goiss]); }
+  const ap = ev.target.closest('[data-anppc]'); if (ap) { ev.preventDefault(); if (window.PPC_VER_ISS) PPC_VER_ISS(+ap.dataset.anppc); return; }
+  const as = ev.target.closest('[data-anppcsec]'); if (as) { ev.preventDefault(); if (window.PPC_VER_SECAO) PPC_VER_SECAO(as.dataset.anppcsec); return; }
   const mc = ev.target.closest('[data-mact]'); if (mc) { modal(''); return; }
   const nv = ev.target.closest('[data-novo]'); if (nv) { ev.preventDefault(); return novoComo(nv.dataset.novo); }
   const rs = ev.target.closest('[data-rasc]'); if (rs) { if (rs.dataset.rasc === 'abrir') { P = RASCUNHO; toast('Rascunho retomado.'); } try { localStorage.removeItem(KEY_ANT); } catch (e) { } RASCUNHO = null; selDisc = null; touch(true); return; }
@@ -2809,6 +2825,7 @@ function headerClick(id) {
   if (id === 'bAbrir') return $('#fAbrir').click();
   if (id === 'bImportar') return $('#fImportar').click();
   if (id === 'bEquipe') return colabAbrir();
+  if (id === 'bComent') return window.PPC_COMENTADO_ABRIR ? PPC_COMENTADO_ABRIR() : toast('Indisponível nesta cópia.');
   if (id === 'bSalvar') { P.meta = Object.assign({}, P.meta, { versaoGerador: VERSAO }); baixar(`Projeto-PPC-${slug()}.json`, JSON.stringify(Object.assign({}, P, { id: Object.assign({}, P.id, { logo: null }) }), null, 1)); toast('Projeto salvo no seu computador. Para continuar depois, use “Abrir”.'); return; }
   if (id === 'bShare') return compartilhar();
   if (id === 'bNovo') return modal(`<h3>Novo PPC</h3><p class="muted" style="margin:0 0 4px">Como você quer começar? O projeto aberto agora neste navegador será substituído; se precisar dele, use <b>Salvar</b> antes.</p>
@@ -3064,10 +3081,13 @@ async function tutorialPDF() {
   const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Tutorial do Gerador de PPC para Cursos de Graduação</title><style>@page{size:A4;margin:16mm 15mm}body{margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}${TUTORIAL.css}</style></head><body><div class="tut">${tutHTML()}</div></body></html>`;
   abrirPrevia(html, 'Tutorial do Gerador de PPC');
 }
-function abrirPrevia(html, titulo) {
+function abrirPrevia(html, titulo, ancora) {
   let o = $('#previa'); if (!o) { o = document.createElement('div'); o.id = 'previa'; document.body.appendChild(o); }
   o.innerHTML = `<div class="pv-bar"><b>${h(titulo)}</b><span class="muted">Clique em <b>Salvar em PDF</b> e, na janela de impressão, escolha “Salvar como PDF”.${ehChromium() ? '' : ' <b style="color:#b45309">Neste navegador o PDF pode sair sem cabeçalho, rodapé e número de página; para o PDF completo use Chrome ou Edge, ou baixe o arquivo .docx.</b>'}</span><button class="tb pri" data-pv="print">Salvar em PDF</button><button class="tb" data-pv="baixar">Baixar para imprimir</button><button class="tb" data-pv="fechar">Fechar</button></div><iframe id="pvFrame"></iframe>`;
-  o.classList.add('on'); $('#pvFrame').srcdoc = html.replace('</body>', '<style>@media screen{body{background:#e8ecf1}}</style></body>'); o._html = html; o._titulo = titulo;
+  o.classList.add('on');
+  const _fr = $('#pvFrame');
+  _fr.onload = ancora ? () => { try { const el = _fr.contentDocument.getElementById(ancora); if (el) el.scrollIntoView({ block: 'center' }); } catch (e) { } } : null;
+  _fr.srcdoc = html.replace('</body>', '<style>@media screen{body{background:#e8ecf1}}</style></body>'); o._html = html; o._titulo = titulo;
 }
 document.addEventListener('click', ev => {
   const b = ev.target.closest('[data-pv]'); if (!b) return; const o = $('#previa');
@@ -3389,6 +3409,182 @@ let rmPend = null;
 function confirmaRm(b) { if (rmPend === b.dataset.k) { rmPend = null; return true; } rmPend = b.dataset.k; b.textContent = 'Confirmar'; setTimeout(() => { rmPend = null; }, 4000); return false; }
 // abre direto pelo link de convite (#ppc=…)
 setTimeout(() => { colabIniciar().then(B => { if (!B && /ppc=/.test(location.hash)) colabAbrir(); }).catch(e => console.warn('Equipe indisponível:', e)); }, 0);
+
+// quadro da equipe deste PPC, para a etapa de gerar documentos
+function equipeCard() {
+  const local = P && P.meta && P.meta.atualizado ? fmtQuando(Date.parse(P.meta.atualizado)) : 'sem registro';
+  if (!(CO.B && CO.pid)) return `<div class="card"><h3>Equipe deste PPC</h3>
+    <p class="muted">Este PPC não está compartilhado: por enquanto, só você o edita, neste navegador.</p>
+    <table class="t"><tbody><tr><td style="width:230px" class="muted">Última alteração nesta cópia</td><td>${h(local)}</td></tr></tbody></table>
+    <div class="row" style="margin-top:10px"><button class="sm" data-act="colabAbrir">Compartilhar com a equipe</button></div></div>`;
+  const mem = Object.entries(CO.membros || {}).filter(([, x]) => !x.removido);
+  const on = new Set(Object.values(CO.pres || {}).map(x => chaveEmail(x.email)));
+  return `<div class="card"><h3>Equipe deste PPC</h3>
+    <table class="t" style="margin-bottom:12px"><tbody>
+      <tr><td style="width:230px" class="muted">Última alteração na nuvem</td><td><b>${h(fmtQuando(CO.meta && (CO.meta.atualizado || CO.meta.criado)))}</b>${CO.meta && CO.meta.por ? ' · por ' + h(CO.meta.por) : ''}</td></tr>
+      <tr><td class="muted">Compartilhado em</td><td>${h(fmtQuando(CO.meta && CO.meta.criado))}</td></tr>
+      <tr><td class="muted">Esta cópia na sua tela</td><td>${h(local)}</td></tr>
+    </tbody></table>
+    <table class="t"><thead><tr><th>Quem trabalha neste PPC</th><th style="width:160px">Situação</th></tr></thead><tbody>
+      ${mem.map(([k, x]) => `<tr><td><b>${h(x.nome || emailDe(k))}</b><div class="muted" style="font-size:12px">${h(emailDe(k))}${x.papel === 'dono' ? ' · criou o PPC' : ''}</div></td><td>${on.has(k) ? '<span style="color:#0f8f92;font-weight:700">● editando agora</span>' : '<span class="muted">fora no momento</span>'}</td></tr>`).join('') || '<tr><td colspan="2" class="muted">Ninguém mais na equipe ainda.</td></tr>'}
+    </tbody></table>
+    <div class="row" style="margin-top:10px"><button class="sm" data-act="colabAbrir">Abrir a equipe</button></div></div>`;
+}
+
+// ---------- PPC comentado: o PPC gerado aqui, com as pendências destacadas ----------
+// ---------- PPC comentado: o próprio documento, com destaque amarelo e comentário ----------
+const CMT = { html: '', grupos: [], secoes: {}, montando: false };
+const cmtPode = () => !!(P && P.id);
+const cN = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+const SEV_ROT = { erro: 'Pendência', aviso: 'Ajuste', obs: 'Observação' };
+
+// um comentário por seção do PPC e, quando o apontamento é de disciplina, por disciplina
+function cmtGrupos() {
+  const g = new Map();
+  ISS.forEach((i, k) => {
+    const ch = (i.sec || '') + '|' + (i.ref || '');
+    if (!g.has(ch)) g.set(ch, { sec: i.sec, ref: i.ref || '', idx: [], itens: [], pg: 1, id: '' });
+    const o = g.get(ch); o.idx.push(k); o.itens.push(i);
+  });
+  return [...g.values()];
+}
+
+const CMT_CSS = `
+.cmt-hl{background:#ffe96b !important;box-shadow:0 0 0 1.5pt #ffe96b;border-radius:2px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.cmt{border:.5pt solid #e0a800;border-left:4pt solid #e0a800;background:#fffbe6;padding:4pt 6pt;margin:5pt 0;font-family:Arial,Helvetica,sans-serif;font-size:8.5pt;line-height:1.3;color:#4a3800;break-inside:avoid;page-break-inside:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.cmt>b i{font-style:normal}
+.cmt>b{display:block;font-size:7.5pt;letter-spacing:.06em;text-transform:uppercase;color:#8a6100;margin-bottom:2pt}
+.cmt ul{margin:0;padding-left:12pt}
+.cmt li{margin:1pt 0}
+.cmt .tg{font-weight:700}
+.cmt .tg.w{color:#8a5a00}
+.cmt .tg.e{color:#a01b1b}
+.cmt-res h2{font:700 13pt/1.2 Arial,Helvetica,sans-serif;color:#1f3864;margin:0 0 2pt;text-align:center}
+.cmt-res p.l{font:9pt/1.35 Arial,Helvetica,sans-serif;color:#44546a;text-align:center;margin:0 0 10pt}
+.cmt-res table{width:100%;border-collapse:collapse;font-family:Arial,Helvetica,sans-serif;font-size:8.5pt}
+.cmt-res th{background:#1f3864;color:#fff;padding:3pt 5pt;text-align:left;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.cmt-res td{border:.5pt solid #b9c4d4;padding:3pt 5pt;vertical-align:top}
+.cmt-res td.c{text-align:center;white-space:nowrap}
+@media screen{.cmt-hl{scroll-margin-top:40px}}`;
+
+async function cmtMontar() {
+  if (CMT.html) return CMT;
+  const lc = await logoCab();
+  const html = PPC_PDF.converter(G.gerarPPC(P, { partes: true }), { moderno: false, titulo: 'PPC comentado', barra: false, logoCabecalho: lc });
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const pgs = [...doc.querySelectorAll('.pg')];
+  const blocos = [];
+  pgs.forEach((pg, pi) => pg.querySelectorAll('p,td,th,h1,h2,h3,h4,li,div').forEach(el => {
+    if (el.querySelector('p,td,th,h1,h2,h3,h4,li')) return;
+    const t = cN(el.textContent); if (!t) return;
+    blocos.push({ el, t, pg: pi + 1 });
+  }));
+  const nomes = {}; G.resumoSecoes([]).forEach(r => nomes[r.k] = r.nome);
+  const achaTitulo = nome => {
+    const alvo = cN(nome); if (!alvo) return -1;
+    const num = (alvo.match(/^[\d.]+/) || [''])[0], txt = alvo.replace(/^[\d.]+\s*/, '');
+    // o documento escreve o título à sua maneira ("6.3 Programas das Disciplinas"): basta o número e a palavra-chave
+    const chave = txt.split(' ')[0] || '';
+    // o título aparece duas vezes (sumário e seção): vale a última ocorrência, que é a seção
+    const ult = f => { for (let i = blocos.length - 1; i >= 0; i--) if (f(blocos[i])) return i; return -1; };
+    let i = ult(b => b.t === alvo || (num && b.t.indexOf(num + ' ') === 0 && b.t.length < 64 && b.t.indexOf(chave) >= 0));
+    if (i < 0 && txt) i = ult(b => b.t.length < txt.length + 16 && b.t.indexOf(txt) >= 0);
+    return i;
+  };
+  const achaDisc = (sec, ref) => {
+    const d = (P.disciplinas || []).find(x => x.id === ref); if (!d) return -1;
+    const nm = cN(d.nome); if (!nm) return -1;
+    const de = Math.max(0, achaTitulo(nomes[sec] || ''));
+    // nos quadros a célula costuma vir como "Disciplina: Nome"
+    const bate = b => b.t === nm || (b.t.indexOf(nm) >= 0 && b.t.length < nm.length + 30);
+    for (let i = de; i < blocos.length; i++) if (bate(blocos[i])) return i;
+    for (let i = 0; i < blocos.length; i++) if (bate(blocos[i])) return i;
+    return -1;
+  };
+  const grupos = cmtGrupos();
+  grupos.forEach((g, n) => {
+    g.id = 'an-g' + n;
+    g.secNome = nomes[g.sec] || g.sec || '';
+    const d = g.ref && (P.disciplinas || []).find(x => x.id === g.ref);
+    g.onde = g.secNome + (d ? ' · ' + d.nome : '');
+    let i = g.ref ? achaDisc(g.sec, g.ref) : -1;
+    if (i < 0) i = achaTitulo(nomes[g.sec] || '');
+    // capa, folha de rosto e formatação não têm título próprio: ficam no início do documento
+    if (i < 0 && ['ident', 'capa', 'formatacao'].indexOf(g.sec) >= 0) i = 0;
+    const b = i >= 0 ? blocos[i] : null;
+    g.achou = !!b;
+    if (!b) return;
+    b.el.classList.add('cmt-hl'); b.el.id = g.id;
+    const box = doc.createElement('div');
+    box.className = 'cmt';
+    box.innerHTML = `<b>Pendência apontada pelo gerador — ${h(g.onde)}</b><ul>`
+      + g.itens.map(x => `<li><span class="tg ${x.sev === 'erro' ? 'e' : 'w'}">${SEV_ROT[x.sev] || 'Observação'}:</span> ${h(x.msg)}</li>`).join('') + '</ul>';
+    const pai = b.el.parentNode, cab = b.el.closest('thead');
+    // cabeçalho de quadro se repete a cada página: o comentário vai uma vez só, antes do quadro
+    if (cab && cab.closest('table') && cab.closest('table').parentNode) {
+      const tb = cab.closest('table'); tb.parentNode.insertBefore(box, tb);
+    }
+    else if (pai && /^(TR|TABLE|TBODY|THEAD)$/.test(pai.tagName)) b.el.appendChild(box);
+    else if (pai) pai.insertBefore(box, b.el.nextSibling);
+  });
+  // âncora de cada seção, para abrir o documento no ponto mesmo sem pendências
+  CMT.secoes = {};
+  Object.keys(nomes).forEach(k => {
+    const i = achaTitulo(nomes[k]);
+    if (i < 0) { if (['ident', 'capa', 'formatacao'].indexOf(k) >= 0 && blocos.length) CMT.secoes[k] = blocos[0].el.id || (blocos[0].el.id = 'an-sec-' + k); return; }
+    const el = blocos[i].el;
+    CMT.secoes[k] = el.id || (el.id = 'an-sec-' + k);
+  });
+  if (grupos.length && pgs.length) {
+    const fim = doc.createElement('div');
+    fim.className = 'pg cmt-res';
+    fim.innerHTML = `<h2>Pendências apontadas pelo gerador</h2>
+      <p class="l">Relação dos pontos destacados em amarelo neste documento${(CO.user && CO.user.nome) ? ' · ' + h(CO.user.nome) : ''} · ${new Date().toLocaleDateString('pt-BR')}</p>
+      <table><thead><tr><th style="width:26pt" class="c">Nº</th><th style="width:150pt">Item do PPC</th><th>Apontamento</th></tr></thead><tbody>
+      ${grupos.map((g, n) => `<tr><td class="c">${n + 1}</td><td>${h(g.onde)}</td><td>${g.itens.map(x => `<span class="tg ${x.sev === 'erro' ? 'e' : 'w'}">${SEV_ROT[x.sev] || 'Observação'}:</span> ${h(x.msg)}`).join('<br>')}</td></tr>`).join('')}
+      </tbody></table>`;
+    pgs[pgs.length - 1].parentNode.appendChild(fim);
+  }
+  const st = doc.createElement('style'); st.textContent = CMT_CSS;
+  doc.head.appendChild(st);
+  CMT.html = '<!DOCTYPE html>' + doc.documentElement.outerHTML;
+  CMT.grupos = grupos;
+  return CMT;
+}
+
+// clique na pendência: abre o PPC comentado na posição correspondente
+window.PPC_VER_ISS = async function (k) {
+  if (!cmtPode() || CMT.montando) return;
+  const g0 = CMT.html && (CMT.grupos || []).find(x => x.idx.indexOf(k) >= 0);
+  if (!g0) { CMT.montando = true; toast('Montando o PPC comentado…'); }
+  try {
+    await cmtMontar();
+    const g = (CMT.grupos || []).find(x => x.idx.indexOf(k) >= 0);
+    abrirPrevia(CMT.html, 'PPC comentado' + (g && g.achou ? ' — ' + g.onde : ''), g && g.achou ? g.id : '');
+    if (!(g && g.achou)) toast('Este apontamento não tem posição fixa no documento: veja a relação na última página.');
+  } catch (e) { console.error(e); toast('Não foi possível montar o PPC comentado.'); }
+  CMT.montando = false;
+};
+// abre o PPC comentado no ponto de uma seção (usado quando não há pendências no item)
+window.PPC_VER_SECAO = async function (sec) {
+  if (!cmtPode() || CMT.montando) return;
+  if (!CMT.html) { CMT.montando = true; toast('Montando o PPC comentado…'); }
+  try {
+    await cmtMontar();
+    abrirPrevia(CMT.html, 'PPC comentado', CMT.secoes[sec] || '');
+  } catch (e) { console.error(e); toast('Não foi possível montar o PPC comentado.'); }
+  CMT.montando = false;
+};
+window.PPC_COMENTADO_ABRIR = () => cmtAbrir();
+
+async function cmtAbrir() {
+  if (!cmtPode() || CMT.montando) return;
+  if (!CMT.html) { CMT.montando = true; toast('Montando o PPC comentado…'); }
+  try { await cmtMontar(); abrirPrevia(CMT.html, 'PPC comentado — ' + (P.id.curso || 'PPC'), ''); }
+  catch (e) { console.error(e); toast('Não foi possível montar o PPC comentado.'); }
+  CMT.montando = false;
+}
+
 
 // início: sempre em branco; rascunho anterior guardado para retomar
 (() => {

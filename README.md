@@ -1,69 +1,125 @@
-# Gerador de PPC para Cursos Técnicos
+# Gerador de PPC para Cursos de Graduação
 
-Este é um gerador de Projeto Pedagógico de Curso (PPC) para os cursos técnicos da Educação Profissional Técnica de Nível Médio (EPTNM) da Universidade Federal de Ciência e Inovação de Minas Gerais (UFCIMG), o antigo CEFET-MG.
+Este é um gerador de Projeto Pedagógico de Curso (PPC) para os cursos de graduação da Universidade Federal de Ciência e Inovação de Minas Gerais (UFCIMG), o antigo CEFET-MG. Nesta primeira versão, ele atende aos cursos de Engenharia.
 
-A ideia deste gerador é que as coordenações de curso produzam PPCs institucionais padronizados, todos no mesmo formato: as mesmas tabelas, carga horária dentro das normas, ementas coerentes com os programas e referências em ABNT. O coordenador de curso preenche o conteúdo, e o documento sai pronto, no padrão institucional.
-
-**Acesse:** https://alexandrefariasbh.github.io/gerador-de-PPC/
+A ideia deste gerador é que as coordenações de curso e os Núcleos Docentes Estruturantes produzam PPCs institucionais padronizados, todos no mesmo formato: o modelo da Instrução Normativa DIRGRAD nº 01/2023, com os mesmos quadros, carga horária dentro das normas, disciplinas equalizadas conforme as resoluções do Conselho de Graduação e referências em ABNT. A coordenação preenche o conteúdo, e o documento sai pronto, no padrão institucional.
 
 ## Como funciona
 
-O gerador abre direto no navegador, sem instalar nada e sem login. Funciona no computador, no notebook e no tablet, nas versões atuais do Chrome, Edge, Firefox e Safari (16.4 ou mais recente). O PPC em PDF sai completo, com cabeçalho, rodapé e número de página, no Chrome e no Edge; nos outros navegadores, use o arquivo .docx para ter o documento completo.
+O gerador abre direto no navegador, sem instalar nada e sem login. Funciona nas versões atuais do Chrome, Edge, Firefox e Safari.
 
-Ao abrir, ele começa em branco, só com as disciplinas da formação geral já preenchidas, porque elas são padronizadas para todos os cursos. Você segue as etapas do menu lateral:
+Ao abrir, ele começa em branco. Em **Novo**, você escolhe começar em branco, importar o PPC vigente do curso ou partir de um PPC existente. Depois, segue as etapas do menu lateral:
 
-1. **Identificação e capa:** curso, campus, forma de oferta, histórico e comissão proponente.
-2. **Textos do projeto:** apresentação, justificativa, objetivos, perfil profissional e as demais seções.
-3. **Matriz curricular:** as disciplinas da parte específica e a carga horária de cada uma.
-4. **Matriz por ano:** a matriz em cartões coloridos, série a série, para visualizar o curso e remanejar disciplinas.
-5. **Ementário e programas:** ementa, objetivos, conteúdo, metodologia e bibliografia de cada disciplina.
-6. **Instalações e laboratórios:** ambientes, laboratórios com seus equipamentos e acervo bibliográfico.
-7. **Corpo docente:** o professor responsável por cada disciplina e o corpo técnico.
-8. **Pendências:** a conferência automática de todo o projeto.
-9. **Gerar documentos:** o PPC pronto em Word ou PDF, e as tabelas em Excel.
+1. **Identificação e capa:** curso, campus, turno, vagas, integralização, dirigentes, comissão, NDE e colegiado.
+2. **Textos do projeto:** as seções 1 a 7 do modelo da IN DIRGRAD nº 01/2023, com orientação em cada uma e contador de caracteres (máximo de 8.000 por seção).
+3. **Competências do egresso:** as competências C1, C2… da DCN das engenharias. Um botão inclui as oito competências gerais do art. 4º da Resolução CNE/CES nº 2/2019.
+4. **Eixos de conteúdos:** nome, objetivos, competências e ementa de cada eixo.
+5. **Disciplinas:** eixo, período, horas-aula teóricas e práticas, área de formação da DCN, característica, competências, pré e correquisitos, ementa e bibliografia.
+6. **Matriz curricular visual:** o curso em fluxograma, período a período, para avaliar e remanejar as disciplinas.
+7. **Atividades e carga horária:** optativas, eletivas, atividades complementares, extensão, Projeto Final de Curso e estágio.
+8. **Pessoal docente e NDE:** professores e composição do Núcleo Docente Estruturante.
+9. **Pendências:** a conferência automática de todo o projeto.
+10. **Gerar documentos:** o PPC pronto em PDF ou .docx.
 
-Enquanto você preenche, o gerador confere tudo contra o documento orientador, a Resolução CEPE nº 15/2022 e o check list de análise da comissão. Ele avisa, por exemplo, quando a carga horária da parte específica não atinge o mínimo do curso, quando uma série passa do limite semanal, quando falta uma unidade no programa ou quando uma referência está fora da ABNT. Cada aviso tem um atalho que leva direto ao campo a ser corrigido. Os números vermelhos no menu mostram quantas pendências ainda faltam em cada etapa.
+## Importar o PPC vigente e reestruturar
 
-## O que o gerador entrega
+O botão **Importar PPC** (ou **Novo → Importar o PPC vigente do curso**) lê um PPC de graduação já pronto, em PDF ou Word (.docx), no formato da IN DIRGRAD nº 01/2023. O gerador aproveita:
 
-- **PPC completo**, no padrão institucional, em arquivo PDF ou .docx: capa, folha de rosto, sumário, ficha de identificação, matriz curricular, ementário, programas, laboratórios, acervo e corpo docente.
-- **PPC completo – Novo Layout**, uma proposta de visual mais moderno para o mesmo conteúdo, em arquivo PDF ou .docx, para avaliação como novo padrão.
-- **Tabelas em Excel**, para a comissão conferir a matriz e os demais quadros.
+- a ficha de identificação do curso;
+- as comissões, o NDE, o colegiado e a lista de siglas;
+- os textos de todas as seções;
+- as competências do egresso;
+- os eixos do Quadro 1, com objetivos, competências e ementas;
+- as disciplinas do Quadro 2, com eixo, período, carga horária, característica, área de formação, competências, pré e correquisitos e ementa;
+- a carga horária das atividades do Quadro 3;
+- a bibliografia do Apêndice I.
 
-## Reestruturar um PPC a partir do anterior
+Antes de usar, o gerador mostra um resumo do que leu. Depois, é só editar o que muda na reestruturação e gerar o PPC novo. O PPC lido fica guardado como **PPC anterior**, para referência. PDFs digitalizados (imagem) não têm texto para ler; nesse caso, use o .docx.
 
-Para reestruturar um curso, você não precisa começar do zero. Clique em **Importar PPC** e escolha o PPC vigente do curso, em PDF ou Word. O gerador lê o documento e aproveita o que já existe: textos do projeto, disciplinas e cargas horárias da matriz, ementas, programas com objetivos, unidades e bibliografias, laboratórios, acervo e corpo docente. Antes de confirmar, ele mostra um resumo do que conseguiu ler.
+## Matriz curricular visual
 
-A partir daí, você edita apenas o que muda na nova versão. A matriz lida fica registrada como **matriz vigente**, e a matriz que você editar passa a ser a **matriz proposta**. No PPC gerado aparecem as duas, seguidas de um **quadro comparativo** com as disciplinas incluídas, excluídas e alteradas, com a carga horária antes e depois. Assim a comissão vê de imediato o que mudou.
+A matriz mostra o curso como um fluxograma, no formato usado pelos colegiados: uma coluna por período, com a carga horária do semestre e a acumulada. Cada cartão traz o código da disciplina, a carga horária, o número sequencial e os pré e correquisitos.
 
-O PDF precisa ter texto. Um PDF digitalizado (imagem escaneada) não pode ser lido; nesse caso, use o arquivo do Word ou o PDF gerado a partir dele.
-
-## Novas funcionalidades
-
-- **Importar PPC:** lê um PPC em PDF ou Word, preenche o gerador e permite gerar a versão reestruturada, como descrito acima.
-- **A partir de PPC existente:** em **Novo**, você pode abrir o PPC do Curso Técnico em Eletrotécnica para se orientar, e então editá-lo e adaptá-lo ao seu curso. Ele vem sem nomes de pessoas: docentes, técnicos, proponentes e equipes elaboradoras ficam para você preencher.
-- **PPC completo em PDF:** além do arquivo .docx, o PPC sai em PDF, no padrão institucional, sem precisar do Word.
-- **PPC completo – Novo Layout:** uma proposta de visual mais moderno, com capa em destaque, indicadores do curso e tabelas mais limpas, em PDF ou .docx, para avaliação como novo padrão.
-- **Matriz por ano:** mostra as disciplinas em cartões coloridos por núcleo e área, uma coluna por série, com a carga horária semanal e anual de cada uma. As disciplinas da parte específica podem ser arrastadas de uma série para outra, e o gerador recalcula as cargas e aponta conflitos de pré-requisito. A matriz pode ser impressa ou salva em PDF.
-- **Prévia do PPC:** mostra o documento sendo montado ao lado do formulário, atualizado enquanto você digita.
-- **Pendências:** a conferência automática lista o que falta ou está fora das normas, e cada item leva direto ao campo a ser corrigido.
-- **Ementa da formação geral:** na matriz curricular, ao passar o mouse sobre uma disciplina da formação geral, aparece a ementa dela.
-- **Normas e documentos:** reúne as Orientações para elaboração de PPC (que também podem ser lidas dentro do gerador), o Quadro 1, o check list de análise, o procedimento de encaminhamento e os links da legislação.
-- **Sobre este gerador:** este texto, com o passo a passo de uso.
-- **Compartilhar o gerador de PPC:** copia o link do gerador para enviar a colegas por WhatsApp, e-mail ou outro aplicativo.
+- **Clique em um cartão** para ver todos os detalhes da disciplina num painel lateral e editá-la ali mesmo. As disciplinas equalizadas (🔒) aparecem só para leitura: nome, ementa, carga horária, pré e correquisitos e bibliografia seguem a resolução.
+- **Arraste um cartão** para outro período (ou para as optativas) para remanejar. As cargas horárias se atualizam na hora.
+- Ao passar o mouse, os pré-requisitos ficam em azul, os correquisitos em verde e as disciplinas que dependem dela em laranja. Conflitos aparecem em vermelho.
+- Em **Atividades por período**, você indica onde entram as ações de extensão (AEx), as optativas, o estágio e o Projeto Final de Curso.
+- Você escolhe as cores (por eixo, área de formação, característica ou natureza), a unidade (horas ou horas-aula) e como os pré-requisitos são indicados (número sequencial ou código).
+- O quadro-resumo traz os componentes curriculares, a carga horária total e a data de aprovação pelo colegiado.
+- **Imprimir / salvar em PDF** gera a matriz em folha A3 deitada.
 
 ## Trabalho em equipe (edição simultânea)
 
 Vários professores podem trabalhar no mesmo PPC ao mesmo tempo. Cada alteração aparece para os outros em poucos segundos.
 
-1. Ao abrir o gerador, entre com a sua **conta Google pessoal** (Gmail). O gerador recebe só o nome e o e-mail.
+1. Ao abrir o gerador, entre com a sua **conta Google pessoal** (Gmail). O e-mail institucional não é usado. O gerador recebe só o nome e o e-mail.
 2. Com o PPC aberto, clique em **Equipe → Compartilhar este PPC**. Ele passa a ficar guardado na nuvem.
-3. Em **Equipe**, copie o **link do PPC** e envie aos colegas. Quem abre o link e entra com a conta Google passa a fazer parte da equipe e já cai no PPC.
-4. Em **Equipe**, você vê quem participa e quem está on-line, e pode **remover** alguém (a pessoa perde o acesso, mesmo tendo o link). No cabeçalho aparecem as iniciais de quem está on-line; no menu lateral e no ementário, as iniciais mostram onde cada pessoa está editando.
+3. Em **Equipe**, copie o **link do PPC** e envie aos colegas (por e-mail ou WhatsApp). Quem abre o link e entra com a conta Google passa a fazer parte da equipe e já cai no PPC. Não é preciso convidar um por um.
+4. Em **Equipe**, você vê quem participa e quem está on-line, e pode **remover** alguém (a pessoa perde o acesso, mesmo tendo o link). No cabeçalho aparecem as iniciais de quem está on-line; no menu lateral e na lista de disciplinas, as iniciais mostram onde cada pessoa está editando.
 
-As alterações são gravadas campo a campo; no mesmo campo, vale a última. **Salvar** continua funcionando e é uma boa cópia de segurança. A cópia do `index.html` aberta direto no computador funciona sem login (e sem a edição em equipe).
+As alterações são gravadas campo a campo. Duas pessoas editando campos diferentes não se atrapalham; se mudarem o mesmo campo ao mesmo tempo, vale a última alteração, e o gerador avisa quando há outra pessoa na mesma tela. **Salvar**, **Abrir** e **Gerar documentos** continuam funcionando normalmente, e **Salvar** é uma boa cópia de segurança.
 
-A edição em equipe usa o mesmo projeto do Firebase (`gerador-ppc-ufcimg`) do gerador da graduação, com as mesmas regras. Nada precisa ser alterado no Firebase: basta publicar neste repositório o mesmo arquivo `colab.json` usado no repositório da graduação. Cada PPC compartilhado fica marcado com o gerador em que foi criado, e cada gerador só lista e abre os seus.
+A cópia do `index.html` aberta direto no computador funciona sem login (e sem a edição em equipe).
+
+### Como ativar (feito uma vez, por quem administra o gerador)
+
+A edição em equipe usa o Firebase Realtime Database, do Google, no plano gratuito (Spark), que não pede cartão.
+
+1. Em https://console.firebase.google.com, crie um projeto (por exemplo, `gerador-ppc-ufcimg`). O Google Analytics pode ficar desligado.
+2. Em **Criação → Realtime Database**, crie o banco no **modo bloqueado**. Na aba **Regras**, apague o conteúdo, cole o do arquivo `firebase-regras.json` deste repositório e clique em **Publicar**.
+3. Em **Authentication → Método de login**, ative o **Google**.
+4. Em **Authentication → Configurações → Domínios autorizados**, adicione `alexandrefariasbh.github.io`.
+5. Em **Configurações do projeto → Seus apps**, adicione um app **Web** (`</>`) e copie o bloco `firebaseConfig`.
+6. No repositório, crie o arquivo `colab.json` a partir de `colab.exemplo.json`, preenchendo com os valores copiados. Confira se o `databaseURL` está lá; ele aparece no topo da página do Realtime Database.
+
+O `colab.json` não é uma senha: ele só diz ao gerador qual projeto usar. Quem controla o acesso são as regras publicadas no passo 2: só os membros de cada PPC (quem entrou pelo link e não foi removido) leem e alteram o PPC. Em **Authentication → Usuários**, você vê quem já entrou no gerador. Se um dia quiser restringir a um domínio de e-mail, informe-o em `dominios` no `colab.json`. O gerador dos cursos técnicos usa o mesmo projeto do Firebase: basta copiar o mesmo `colab.json` para o repositório dele.
+
+## O que o gerador monta sozinho
+
+A partir dos eixos, das disciplinas e das atividades, o gerador monta todos os quadros do modelo:
+
+- **Quadro 1:** eixos de conteúdos e atividades, com o desdobramento em disciplinas e atividades;
+- **Quadro 2:** apresentação de cada disciplina;
+- **Quadro 3:** síntese da distribuição da carga horária, com os percentuais;
+- **Quadro 4:** carga horária obrigatória por eixo;
+- **Quadro 5:** disciplinas optativas;
+- **Quadro 6:** disciplinas por período, com carga semestral e acumulada;
+- **Quadro 7:** matriz curricular em fluxograma, numa folha deitada, no modelo da IN: cada disciplina num cartão com código, carga horária, número e pré e correquisitos, nas cores dos eixos, com as atividades (extensão, optativas, estágio e PFC) nos períodos indicados;
+- **Quadro 8:** relação entre as competências do egresso e as disciplinas;
+- **Apêndice I:** bibliografia por disciplina.
+
+A numeração das disciplinas é automática, no formato da IN (01/1) ou no formato período.ordem/eixo (1.01/1). A carga horária em horas é calculada a partir das horas-aula de 50 minutos.
+
+## Disciplinas equalizadas
+
+Em **Disciplinas**, o botão **+ equalizada** abre o catálogo das disciplinas equalizadas das Resoluções CGRAD nº 05, 06, 07, 08, 09 e 14/2022 (Computação, Matemática, Física, Química e Humanidades e Ciências Sociais Aplicadas). Ao incluir uma disciplina, o gerador preenche a ementa, a carga horária, o período estimado e a bibliografia da Deliberação CGRAD nº 32/22 (campi Nova Suíça e Nova Gameleira), e liga os pré e correquisitos às disciplinas que já estão no projeto. Se a ementa ou a carga horária de uma equalizada for alterada, o gerador avisa.
+
+## O que o gerador confere
+
+Enquanto você preenche, o gerador confere o projeto contra a IN DIRGRAD nº 01/2023 e nº 02/2023, a Resolução CEPE nº 18/22, a DCN das engenharias e a Resolução CNE/CES nº 7/2018. Ele avisa, por exemplo, quando:
+
+- a carga horária total não chega a 3.600 horas;
+- a extensão não alcança 10% da carga horária total;
+- o estágio tem menos de 160 horas;
+- uma seção passa de 8.000 caracteres;
+- uma disciplina não tem 3 títulos de bibliografia básica e 5 de complementar;
+- um pré-requisito não está em período anterior;
+- algum conteúdo básico obrigatório da DCN não aparece nas disciplinas;
+- uma competência não é desenvolvida por nenhuma disciplina.
+
+Cada aviso tem um atalho que leva direto ao campo a ser corrigido. A norma citada no aviso também é clicável: o gerador abre o documento (IN DIRGRAD, resolução do CGRAD ou deliberação) na página do trecho correspondente, com o trecho destacado em amarelo. As leis e resoluções federais abrem no site oficial.
+
+O limite de 8.000 caracteres por seção vem do modelo de PPC da IN DIRGRAD nº 01/2023 (Anexo II), que indica “Máximo de caracteres: 8000” em cada seção. A própria IN diz que esse limite é sugerido, para manter o texto objetivo. Por isso, passar do limite gera um aviso, e não uma pendência.
+
+## Recursos
+
+- **A partir de PPC existente:** em **Novo**, você pode abrir o PPC de Engenharia de Materiais (Campus Nova Suíça, 2022) para se orientar, e editá-lo e adaptá-lo ao seu curso. Ele vem sem nomes de pessoas.
+- **Prévia do PPC:** mostra o documento sendo montado ao lado do formulário, atualizado enquanto você digita.
+- **Normas e documentos:** reúne as Instruções Normativas DIRGRAD nº 01/2023, 02/2023 e 06/2026, as Resoluções CGRAD das disciplinas equalizadas (nº 05, 06, 07, 08, 09 e 14/2022), a Deliberação CGRAD nº 32/22 e os links da legislação.
+- **Gerar documentos:** o PPC completo em PDF ou .docx, no padrão institucional (com cabeçalho, rodapé e a matriz em fluxograma numa folha deitada) ou no **Novo Layout** (proposta de visual moderno); a matriz curricular visual em PDF (folha A3, uma página); e o arquivo do projeto (.json).
+- **Tutorial:** guia ilustrado, passo a passo, com todas as etapas; pode ser baixado em PDF.
+- **Sobre este gerador:** este texto, com o passo a passo de uso.
+- **Compartilhar o gerador de PPC:** copia o link do gerador para enviar a colegas.
 
 ## Onde ficam os dados
 
@@ -73,25 +129,21 @@ Tudo o que você digita fica salvo apenas no seu navegador. Nada é enviado para
 - se você limpar os dados do navegador, o rascunho se perde, então salve o projeto com frequência;
 - ao reabrir o gerador, ele começa em branco e oferece **Continuar rascunho** caso haja trabalho anterior salvo naquele navegador.
 
-## Estatísticas de uso
-
-Na versão publicada no GitHub Pages, o gerador conta acessos de forma anônima com o [GoatCounter](https://www.goatcounter.com), que não usa cookies e não identifica pessoas. São registrados apenas o número de visitas, as etapas abertas e ações como “gerou PPC em PDF”, “importou PPC” ou “baixou o tutorial”. Nenhum texto, nome ou dado do PPC é enviado. A cópia do `index.html` aberta no próprio computador não conta nada.
-
 ## No celular
 
 O gerador funciona também no celular e no tablet. Em telas pequenas, o menu de etapas fica no botão ☰, no alto à esquerda, e os formulários passam para uma coluna. As tabelas largas e a matriz rolam para o lado com o dedo. Como arrastar cartões não funciona bem na tela de toque, use as setas ◀ ▶ (técnico) ou, na graduação, toque no cartão e escolha o período no painel. Para textos longos e para gerar o PPC final, o computador continua sendo mais confortável.
 
 ## Versão
 
-A versão aparece no topo da tela, ao lado do título. Quando o gerador for atualizado, a versão muda. Se alguém relatar um problema, vale conferir primeiro se está usando a versão mais recente. Se o navegador continuar mostrando uma versão antiga, recarregue a página (Ctrl+Shift+R no Windows, Cmd+Shift+R no Mac).
+A versão aparece no topo da tela, ao lado do título. Se o navegador continuar mostrando uma versão antiga, recarregue a página (Ctrl+Shift+R no Windows, Cmd+Shift+R no Mac).
 
 ## Arquivos deste repositório
 
-- **`index.html`**: o gerador completo, em um único arquivo. É o que o GitHub Pages publica no link acima.
+- **`index.html`**: o gerador completo, em um único arquivo. É o que o GitHub Pages publica.
 - **`README.md`**: este texto.
-- **`Tutorial-Gerador-PPC-Tecnico.pdf`**: o tutorial em PDF, baixado pelo botão do gerador.
-- **`goatcounter.txt`**: o código do contador de acessos (GoatCounter). Apague o arquivo para desligar a contagem.
-- **`colab.json`**: a configuração da edição em equipe (o mesmo arquivo do repositório da graduação). Sem ele, o gerador funciona normalmente, só que sem a edição em equipe e sem pedir login.
+- **`Tutorial-Gerador-PPC-Graduacao.pdf`**: o tutorial em PDF, baixado pelo botão do gerador.
+- **`colab.json`**: a configuração da edição em equipe (criada a partir de `colab.exemplo.json`). Sem ele, o gerador funciona normalmente, só que sem a edição em equipe.
+- **`firebase-regras.json`**: as regras de acesso que vão no Firebase.
 
 O `index.html` também funciona sozinho: baixe o arquivo e abra com dois cliques, mesmo sem internet.
 

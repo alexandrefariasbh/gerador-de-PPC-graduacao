@@ -27,7 +27,7 @@
       "$k": {
         ".read": "auth != null && auth.token.email.toLowerCase().replace('.', ',') == $k",
         "$pid": {
-          ".write": "auth != null && root.child('projetos').child($pid).child('membros').child(auth.token.email.toLowerCase().replace('.', ',')).exists() && root.child('projetos').child($pid).child('membros').child(auth.token.email.toLowerCase().replace('.', ',')).child('removido').val() != true"
+          ".write": "auth != null && ((root.child('projetos').child($pid).child('membros').child(auth.token.email.toLowerCase().replace('.', ',')).exists() && root.child('projetos').child($pid).child('membros').child(auth.token.email.toLowerCase().replace('.', ',')).child('removido').val() != true) || (auth.token.email.toLowerCase().replace('.', ',') == $k && !newData.exists()))"
         }
       }
     },
@@ -37,6 +37,17 @@
         "$uid": {
           ".write": "auth != null && auth.uid == $uid && root.child('projetos').child($pid).child('membros').child(auth.token.email.toLowerCase().replace('.', ',')).exists() && root.child('projetos').child($pid).child('membros').child(auth.token.email.toLowerCase().replace('.', ',')).child('removido').val() != true"
         }
+      }
+    },
+    "relatores": {
+      "$k": {
+        ".read": "auth != null && auth.token.email.toLowerCase().replace('.', ',') == $k"
+      }
+    },
+    "relatorias": {
+      ".read": "auth != null && root.child('relatores').child(auth.token.email.toLowerCase().replace('.', ',')).exists()",
+      "$pid": {
+        ".write": "auth != null && root.child('relatores').child(auth.token.email.toLowerCase().replace('.', ',')).exists()"
       }
     }
   }

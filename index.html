@@ -2621,13 +2621,13 @@ function vGerar() {
   const e = ISS.filter(i => i.sev === 'erro').length;
   return `<h2>Gerar documentos</h2><p class="lead">O PPC sai no modelo da IN DIRGRAD nº 01/2023: capa, folha de rosto, listas, ficha de identificação, sumário, seções 1 a 7, Quadros 1 a 8 (eixos, disciplinas, síntese de carga horária, carga por eixo, optativas, disciplinas por período, matriz curricular e competências) e Apêndice I com a bibliografia por disciplina.</p>
   ${e ? `<div class="card" style="border-color:#f3b4ae;background:var(--errbg)"><b style="color:var(--err)">Há ${e} pendência(s).</b> Você pode gerar o arquivo para revisão; seções vazias aparecem marcadas. <a href="#" data-step="validar">Ver pendências</a>.</div>` : '<div class="card" style="border-color:#b7e0c8;background:var(--okbg);color:var(--ok)"><b>Sem pendências.</b></div>'}
+  ${typeof equipeCard === 'function' ? equipeCard() : ''}
   <div class="big">
     <div class="card"><h3>PPC completo</h3><p>No padrão institucional: capa, folha de rosto, listas, ficha de identificação, sumário, todas as seções, Quadros 1 a 8 (a matriz curricular em fluxograma, numa folha deitada) e a bibliografia por disciplina, com o logotipo no cabeçalho e o rodapé com o nome do curso, o campus e o número da página. No Word, aceite “atualizar campos” para numerar o sumário. O PDF abre numa prévia: clique em <b>Salvar em PDF</b> e escolha “Salvar como PDF”.</p><div class="row" style="gap:6px"><button class="pri" data-act="gPdf">Arquivo PDF</button><button class="pri" data-act="gDocx">Arquivo .docx</button></div></div>
     <div class="card"><h3>PPC completo – Novo Layout <span class="tag prop">PROPOSTA</span></h3><p>O mesmo conteúdo em visual de relatório moderno: capa em bloco azul-escuro com o nome do curso em destaque e indicadores (carga horária, duração, turno, estágio), folha de rosto com faixa lateral, seções numeradas 01, 02…, tabelas só com linhas horizontais e cabeçalho escuro. <b style="color:#c62828">Proposta</b> para avaliação como novo padrão.</p><div class="row" style="gap:6px"><button class="pri" data-act="gPdfM">Arquivo PDF</button><button class="pri" data-act="gDocxM">Arquivo .docx</button></div></div>
     <div class="card"><h3>Matriz curricular visual (PDF)</h3><p>O fluxograma do curso em folha A3 deitada, com as cores dos eixos, os pré e correquisitos, as atividades por período e o quadro-resumo, para levar ao colegiado ou divulgar aos estudantes.</p><button class="pri" data-act="mvPdf">Arquivo PDF</button></div>
     <div class="card"><h3>Arquivo do projeto (.json)</h3><p>O projeto completo para abrir de novo no gerador (botão <b>Abrir</b>), continuar depois ou enviar a um colega.</p><button class="pri" data-act="gJson">Baixar arquivo do projeto</button></div>
   </div>
-  ${typeof equipeCard === 'function' ? equipeCard() : ''}
   <p class="muted" style="margin-top:14px">Guarde também o arquivo do projeto (botão <b>Salvar</b> no topo) para continuar depois ou passar a um colega.</p>`;
 }
 const LEIS = [
@@ -3277,6 +3277,20 @@ function colabSair(silencioso) {
   CO.pid = null; CO.ultimo = null; CO.pres = {}; CO.membros = {}; clearTimeout(CO.timer);
   if (!silencioso) { history.replaceState(null, '', location.pathname + location.search); toast('Você saiu do PPC compartilhado. O que está na tela continua como cópia neste navegador.'); render(); }
 }
+// apaga da nuvem um PPC compartilhado: tira do índice de cada membro e remove o projeto
+async function colabExcluirPPC(pid) {
+  const B = CO.B; if (!B || !pid) return;
+  try {
+    const membros = (await B.get(`projetos/${pid}/membros`)) || {};
+    for (const k of Object.keys(membros)) { try { await B.set(`indice/${k}/${pid}`, null); } catch (e) { } }
+    try { await B.set(`indice/${chaveEmail(CO.user.email)}/${pid}`, null); } catch (e) { }
+    try { await B.set(`presenca/${pid}`, null); } catch (e) { }
+    await B.set(`projetos/${pid}`, null);
+    if (CO.pid === pid) colabSair(true);
+    toast('PPC compartilhado excluído da nuvem. O que está na sua tela continua aqui, como cópia.');
+  } catch (e) { toast('Não foi possível excluir: ' + ((e && e.message) || e)); }
+  colabAbrir();
+}
 function colabMudou() { if (!CO.pid || CO.carregando || !CO.ultimo) return; CO.pendente = true; clearTimeout(CO.timer); CO.timer = setTimeout(colabEnvia, 350); }
 function colabEnvia() {
   if (!CO.pid || !CO.ultimo) return;
@@ -3362,7 +3376,7 @@ async function colabAbrir() {
       <table class="t"><thead><tr><th>Membro</th><th style="width:110px">Situação</th>${CO.dono ? '<th style="width:70px"></th>' : ''}</tr></thead><tbody>${mem.map(([k, x]) => `<tr><td><b>${h(x.nome || emailDe(k))}</b><div class="muted" style="font-size:12px">${h(emailDe(k))}${x.papel === 'dono' ? ' · criou o PPC' : ''}</div></td><td>${on.has(k) ? '<span style="color:#0f8f92;font-weight:700">● on-line</span>' : '<span class="muted">fora</span>'}</td>${CO.dono ? `<td>${x.papel === 'dono' ? '' : `<button class="sm ghost" data-colab="remover" data-k="${h(k)}">Remover</button>`}</td>` : ''}</tr>`).join('')}</tbody></table>
       <div class="flabel">Link do PPC para a equipe</div><div class="row" style="gap:8px"><input id="colabLink" value="${h(link)}" readonly style="flex:1"><button data-colab="copiar">Copiar</button></div>
       <p class="muted" style="font-size:12.5px">Envie este link para os colegas (por e-mail ou WhatsApp). Quem abre o link e entra com a conta Google passa a fazer parte da equipe deste PPC e já cai nele. Só quem tem o link entra. Se alguém não deveria estar na equipe, use “Remover”: a pessoa perde o acesso, mesmo tendo o link.</p>
-      <div class="row" style="justify-content:space-between;margin-top:10px;gap:8px"><button class="ghost" data-colab="sair">Sair do PPC compartilhado</button><span><button class="ghost" data-colab="logout">Trocar de conta</button> <button data-mact="cancelar">Fechar</button></span></div></div>`);
+      <div class="row" style="justify-content:space-between;margin-top:10px;gap:8px"><span><button class="ghost" data-colab="sair">Sair do ${ADAPT.termo || 'PPC'} compartilhado</button>${(CO.dono || (CO.meta && CO.user && CO.meta.dono === CO.user.uid)) ? ` <button class="ghost" data-colab="excluir" data-pid="${h(CO.pid)}" data-k="x${h(CO.pid)}" title="Apaga este ${ADAPT.termo || 'PPC'} da nuvem, para todos os membros">Excluir da nuvem</button>` : ''}</span><span><button class="ghost" data-colab="logout">Trocar de conta</button> <button data-mact="cancelar">Fechar</button></span></div></div>`);
   }
   let lista = {}; try { lista = (await B.get(`indice/${me}`)) || {}; } catch (e) { }
   const itens = Object.entries(lista).filter(([, x]) => geradorDe(x) === ADAPT.gerador);
@@ -3371,7 +3385,7 @@ async function colabAbrir() {
   itens.sort((a, b) => ((metas[b[0]] || {}).atualizado || b[1].criado || 0) - ((metas[a[0]] || {}).atualizado || a[1].criado || 0));
   modal(`<div class="colab"><h3>Trabalhar em equipe</h3><p class="muted">Você entrou como <b>${h(CO.user.nome)}</b> (${h(CO.user.email)}).</p>
     <div class="flabel">${(ADAPT.termo || 'PPC')==='parecer'?'Pareceres compartilhados com você':'PPCs compartilhados com você'}</div>
-    ${itens.length ? `<div class="ndocs">${itens.map(([pid, x]) => `<div class="ndoc"><div class="ni">PPC</div><div style="flex:1"><b>${h(x.curso || 'PPC sem nome')}</b><div class="muted" style="font-size:12.5px">${x.papel === 'dono' ? 'criado por você' : 'você participa'} · última alteração ${h(fmtQuando((metas[pid] || {}).atualizado || (metas[pid] || {}).criado))}${(metas[pid] || {}).por ? ' por ' + h((metas[pid] || {}).por) : ''}</div></div><button class="sm pri" data-colab="abrir" data-pid="${h(pid)}">Abrir</button></div>`).join('')}</div>` : '<p class="muted">Nenhum ainda.</p>'}
+    ${itens.length ? `<div class="ndocs">${itens.map(([pid, x]) => `<div class="ndoc"><div class="ni">PPC</div><div style="flex:1"><b>${h(x.curso || 'PPC sem nome')}</b><div class="muted" style="font-size:12.5px">${(metas[pid] || {}).criado || (metas[pid] || {}).atualizado ? `${x.papel === 'dono' ? 'criado por você' : 'você participa'} · última alteração ${h(fmtQuando((metas[pid] || {}).atualizado || (metas[pid] || {}).criado))}${(metas[pid] || {}).por ? ' por ' + h((metas[pid] || {}).por) : ''}` : 'já não está na nuvem'}</div></div><span class="row" style="gap:6px">${(metas[pid] || {}).criado || (metas[pid] || {}).atualizado ? `<button class="sm pri" data-colab="abrir" data-pid="${h(pid)}">Abrir</button>${x.papel === 'dono' ? `<button class="sm ghost" data-colab="excluir" data-pid="${h(pid)}" data-k="x${h(pid)}" title="Apaga este ${ADAPT.termo || 'PPC'} da nuvem, para todos os membros">Excluir</button>` : ''}` : `<button class="sm ghost" data-colab="tirar" data-pid="${h(pid)}">Tirar da lista</button>`}</span></div>`).join('')}</div>` : '<p class="muted">Nenhum ainda.</p>'}
     <div class="flabel">Compartilhar o ${ADAPT.termo || 'PPC'} que está aberto agora</div>
     <p class="muted" style="font-size:12.5px;margin-top:0">Cria um ${ADAPT.termo || 'PPC'} compartilhado a partir do que está na tela (${h(ADAPT.curso(P) || 'projeto sem nome')}). Depois, envie o link para os colegas.</p>
     <div class="row" style="justify-content:space-between;gap:8px"><button class="ghost" data-colab="logout">Trocar de conta</button><span><button class="ghost" data-mact="cancelar">Fechar</button> <button class="pri" data-colab="criar">Compartilhar este PPC</button></span></div></div>`);
@@ -3391,6 +3405,8 @@ document.addEventListener('click', async ev => {
   if (a === 'logout') { modal(''); colabSair(true); await CO.B.logout(); CO.user = null; portao(); }
   if (a === 'abrir') await colabEntrar(b.dataset.pid);
   if (a === 'criar') await colabCriar();
+  if (a === 'excluir' && confirmaRm(b)) await colabExcluirPPC(b.dataset.pid);
+  if (a === 'tirar') { try { await CO.B.set(`indice/${chaveEmail(CO.user.email)}/${b.dataset.pid}`, null); } catch (e) { } colabAbrir(); }
   if (a === 'remover' && confirmaRm(b)) { await CO.B.update(`projetos/${CO.pid}/membros/${b.dataset.k}`, { removido: true }); await CO.B.set(`indice/${b.dataset.k}/${CO.pid}`, null).catch(() => { }); toast('Membro removido. Mesmo com o link, essa pessoa não consegue mais entrar.'); }
   if (a === 'copiar') { const i = $('#colabLink'); try { await navigator.clipboard.writeText(i.value); } catch (e) { i.select(); document.execCommand('copy'); } toast('Link copiado.'); }
   if (a === 'sair') { modal(''); colabSair(); }

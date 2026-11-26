@@ -274,6 +274,11 @@ header button.tb.pri:hover{color:#fff}
 @media (max-width:1100px){header .hrow1{grid-template-columns:auto 1fr;padding:12px 16px}header .hr{display:none}header h1{font-size:clamp(9px,1.1vw,14.5px)!important}header .hrow2{padding:8px 16px}}
 @media (max-width:700px){header .hrow1{grid-template-columns:1fr}header .hlogo{justify-content:center}}
 html,body{height:auto!important;min-height:100%}
+/* campos vindos de norma: mostrados, não editáveis */
+.rotext{white-space:pre-wrap;background:#f4f6f9;border:1px solid var(--line);border-left:3px solid #94a3b8;border-radius:8px;padding:8px 10px;font-size:13.5px;color:#334155;line-height:1.45}
+.rotext i{color:var(--mut)}
+.eqnota{background:#f0f7ff;border:1px solid #c7ddf5;border-left:4px solid #2563eb;border-radius:8px;padding:9px 12px;margin:0 0 12px;font-size:13px;color:#1e3a5f;display:flex;flex-direction:column;gap:4px}
+.eqnota b{font-size:12.5px}
 
 .sobre p{margin:0 0 8px;text-align:justify}.sobre ol,.sobre ul{margin:4px 0 8px;padding-left:22px}.sobre li{margin:3px 0}
 </style>
@@ -398,7 +403,7 @@ html,body{height:auto!important;min-height:100%}
         vagasAut: '', vagasProc: '', periodicidade: '', formasIngresso: 'Processo seletivo para o 1º período (SiSU), reingresso, reopção, transferência e obtenção de novo título',
         integPrev: '', integMax: '', tipo: 'implantacao', versao: '', local: '', data: '',
         atoCriacao: '', atoFunc: '', codEmec: '', atoReconh: '', atoRenov: '', cpc: '', enade: '',
-        minutosHA: 50, numeracao: 'in',
+        minutosHA: 50, numeracao: 'in', rodape: '',
         dirigentes: { dg: '', vdg: '', dirgrad: '', adj: '', campus: '' },
         comissoes: { elab: membrosVazios(), reest: membrosVazios(), nde: membrosVazios(), colegiado: membrosVazios() },
         aprovColegiado: '',
@@ -934,7 +939,7 @@ html,body{height:auto!important;min-height:100%}
       if (coms.length) { B.push(pageBreak(), para(run('COMISSÕES', { bold: true, size: 9, color: ACC, spc: 60 }), { align: 'left', spacing: [0, 160] }), ...coms); }
     } else {
       blocoInst();
-      B.push(cen(campusTxt.toUpperCase(), 11, true, [400, 0]));
+      B.push(cen(campusTxt.toUpperCase(), 11, true, [40, 0]));
       if (logo) B.push(para(LG(2.4), { style: 'Centro', spacing: [900, 0] })); else B.push(para('', { spacing: [900, 0] }));
       B.push(cen('PROJETO PEDAGÓGICO DO CURSO DE', 16, true, [1300, 60]), cen(nomeCurso.toUpperCase(), 20, true, [0, 600]));
       B.push(cen(`Versão: ${tipoTxt}/${ano(I.data) || ''}${I.versao ? ' – versão ' + I.versao : ''}`, 12, false, [0, 0]));
@@ -1195,15 +1200,25 @@ html,body{height:auto!important;min-height:100%}
     }
     B.push(...tocEntries, pageBreak(), ...corpo, fimSecao('retrato', false, true), ...paisagem, fimSecao('paisagem', false, true), ...corpo2);
 
-    const rodape = `Projeto Pedagógico do Curso de ${nomeCurso} – ${campusTxt} – ${I.versao ? 'versão ' + I.versao + ', ' : ''}${ano(I.data)}.`;
-    const pagina = '<w:r><w:rPr><w:sz w:val="20"/></w:rPr><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:rPr><w:sz w:val="20"/></w:rPr><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r><w:r><w:rPr><w:sz w:val="20"/></w:rPr><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:rPr><w:sz w:val="20"/></w:rPr><w:t>1</w:t></w:r><w:r><w:rPr><w:sz w:val="20"/></w:rPr><w:fldChar w:fldCharType="end"/></w:r>';
+    // ---------- rodapé: número da folha e a identificação do projeto, em fonte pequena ----------
+    // modelo: PPCs de graduação da instituição (número à direita e três linhas centralizadas abaixo).
+    // Os dados saem do cadastro do usuário; o campo "rodapé" da identificação, se preenchido, substitui as linhas.
+    const instTit = (I.instituicao || '').toLowerCase().split(' ').map((w, i) => w.length > 2 || i === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w).join(' ');
+    const rodLinhas = (String(I.rodape || '').trim() ? lines(I.rodape) : [
+      `Projeto Pedagógico do Curso de ${nomeCurso} – ${campusTxt}${I.versao ? ' – versão ' + I.versao : ''}${ano(I.data) ? ', ' + ano(I.data) : ''}.`,
+      `${I.sigla ? I.sigla + ' – ' : ''}${instTit} – ${campusTxt}`,
+      I.endereco || ''
+    ]).filter(x => String(x).trim());
+    const pagNum = (sz, cor, bold) => ['begin', ' PAGE ', 'separate', '1', 'end'].map((x, k) => `<w:r><w:rPr>${bold ? '<w:b/>' : ''}${cor ? `<w:color w:val="${cor}"/>` : ''}<w:sz w:val="${Math.round(sz * 2)}"/></w:rPr>${k === 1 ? `<w:instrText xml:space="preserve">${x}</w:instrText>` : k === 3 ? `<w:t>${x}</w:t>` : `<w:fldChar w:fldCharType="${x}"/>`}</w:r>`).join('');
+    const rodCentro = (sz, cor) => rodLinhas.map((t, i) => para(run(t, { size: sz, color: cor }), { style: 'Rodap', align: 'center', spacing: [0, 0], line: 200 })).join('');
     const hf = TEMA ? {
       header: util => para([run('PROJETO PEDAGÓGICO DE CURSO', { bold: true, size: 7.5, color: ACC, spc: 40 }), '<w:r><w:tab/></w:r>', run(nomeCurso, { size: 8.5, color: MUT })].join(''), { style: 'Cabealho', tabs: [['right', util]], spacing: [0, 0] }),
-      footer: util => para([run(`${I.sigla || ''}${I.campus ? '  ·  Campus ' + I.campus : ''}`, { size: 8, color: MUT }), '<w:r><w:tab/></w:r>', ...['begin', ' PAGE ', 'separate', '1', 'end'].map((x, k) => `<w:r><w:rPr><w:b/><w:color w:val="${DEEP}"/><w:sz w:val="26"/></w:rPr>${k === 1 ? `<w:instrText xml:space="preserve">${x}</w:instrText>` : k === 3 ? `<w:t>${x}</w:t>` : `<w:fldChar w:fldCharType="${x}"/>`}</w:r>`)].join(''), { style: 'Rodap', tabs: [['right', util]] })
+      footer: util => para([run(`${I.sigla || ''}${I.campus ? '  ·  Campus ' + I.campus : ''}`, { size: 8, color: MUT }), '<w:r><w:tab/></w:r>', pagNum(13, DEEP, true)].join(''), { style: 'Rodap', tabs: [['right', util]], spacing: [0, 0] })
+        + rodCentro(7.5, MUT)
     } : {
       header: util => para([LG(0.8), '<w:r><w:rPr><w:sz w:val="22"/></w:rPr><w:tab/></w:r>', run(`Projeto Pedagógico do Curso de ${nomeCurso}`, { size: 10 })].join(''), { style: 'Cabealho', tabs: [['right', util]], spacing: [0, 120] }),
-      footer: util => para([run(rodape, { size: 8 }), '<w:r><w:rPr><w:sz w:val="20"/></w:rPr><w:tab/></w:r>', pagina].join(''), { style: 'Rodap', tabs: [['right', util]], borderBottom: true })
-        + para(run(`${I.instituicao.toLowerCase().split(' ').map((w, i) => w.length > 2 || i === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w).join(' ')} – ${campusTxt}${I.endereco ? ' – ' + I.endereco : ''}`, { size: 8 }), { style: 'Rodap' })
+      footer: util => para(pagNum(10, '', false), { style: 'Rodap', align: 'right', spacing: [0, 0], borderBottom: true })
+        + rodCentro(7.5, '')
     };
     return buildDocx(B.join(''), { hf, lastSect: sectPr('retrato', false, true), updateFields: true, title: `Projeto Pedagógico do Curso de ${nomeCurso}`, image: logo, partes: opcoes.partes, logoURL: ((I.logo && I.logo.dataURL) || (root.PPC_LOGO && root.PPC_LOGO.dataURL) || '') });
   }
@@ -1416,20 +1431,32 @@ window.PPCG_MODELO={"meta":{"formato":"ppc-grad","versao":1,"modelo":"Engenharia
             else if (c.localName === 'instrText' && /PAGE/.test(c.textContent)) partes[partes.length - 1] += '\u0000';
           }
         }
-        return { partes, cor, tam };
+        const pp = kid(p, 'pPr'), jc = pp && kid(pp, 'jc');
+        return { partes, cor, tam, jc: (jc && at(jc, 'val')) || '' };
       });
     };
     const H1 = hfTexto('header1'), F1 = hfTexto('footer1');
     const q = s => '"' + String(s || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\u0000\d?/g, '') + '"';
     const pg = s => s.includes('\u0000') ? `${q(s.split('\u0000')[0])} counter(page)` : q(s);
-    const h0 = H1 && H1[0] ? H1[0].partes : ['', ''], f0 = F1 && F1[0] ? F1[0].partes : ['', ''], f1 = F1 && F1[1] ? F1[1].partes.join(' ') : '';
+    const lin = arr => arr.length ? arr.map(q).join(' "\\A" ') : '""';
+    const h0 = H1 && H1[0] ? H1[0].partes : ['', ''];
+    // rodapé: cada parágrafo do rodapé do documento vira uma linha, na mesma posição (esquerda, centro ou direita)
+    const fBal = { left: [], center: [], right: [] };
+    (F1 || []).forEach(p => {
+      const txt = p.partes.join('  ').replace(/\u0000\d?/g, '').replace(/\s+/g, ' ').trim();
+      if (!txt) return;
+      fBal[p.jc === 'center' ? 'center' : p.jc === 'right' ? 'right' : 'left'].push(txt);
+    });
+    const fTam = (F1 || []).reduce((a, p) => a || +p.tam || 0, 0) || 8;
+    const fTxt = ['center', 'left', 'right'].map(k => fBal[k].join('\n')).filter(Boolean).join('\n');
     const corH = (H1 && H1[0] && H1[0].cor) || '333', corF = (F1 && F1[0] && F1[0].cor) || '333';
     const logoCab = opc.logoCabecalho || '';
     const M = '25mm'; // margens (1418 twips)
     const margem = (nome, larg) => `@page ${nome}{size:${larg};margin:${M} ${M} 24mm ${M};
       @top-left{content:${logoCab ? `image-set(url(${logoCab}) 3x) ` : ''}${q(h0.length > 1 ? h0[0] : '')};font:8pt ${FONTE};color:#${corH};vertical-align:bottom;padding-bottom:3mm}
       @top-right{content:${q(h0[h0.length - 1])};font:${opc.moderno ? 8.5 : 10}pt ${FONTE};color:#${opc.moderno ? '64748B' : '000'};vertical-align:bottom;padding-bottom:3mm${opc.moderno ? '' : ';border-bottom:0'}}
-      @bottom-left{content:${q(f0[0])}${f1 ? ` "\\A" ${q(f1)}` : ''};white-space:pre;font:8pt ${FONTE};color:#${opc.moderno ? '64748B' : '000'};vertical-align:top;padding-top:3mm}
+      @bottom-left{content:${lin(fBal.left)};white-space:pre;font:${fTam}pt ${FONTE};color:#${opc.moderno ? '64748B' : '000'};vertical-align:top;padding-top:3mm}
+      @bottom-center{content:${lin(fBal.center)};white-space:pre;text-align:center;font:${fTam}pt ${FONTE};color:#${opc.moderno ? '64748B' : '000'};vertical-align:top;padding-top:3mm}
       @bottom-right{content:counter(page);font:${opc.moderno ? '700 12pt' : '10pt'} ${FONTE};color:#${opc.moderno ? '0B1F3A' : '000'};vertical-align:top;padding-top:3mm}}`;
     let pageCss = `@page vazio{size:A4;margin:0}\n${margem('ret', 'A4')}\n${margem('pai', 'A4 landscape')}`;
     // corpo
@@ -1551,8 +1578,24 @@ function paginar(){
       if(pg.scrollHeight<=H+2)continue;
       quebra(pg,util);
     }
+    numerar();
     document.documentElement.setAttribute('data-paginado','1');
   }catch(e){ document.documentElement.setAttribute('data-paginado','erro'); }
+}
+// na tela as caixas de margem do @page não aparecem: o rodapé e o número da folha são desenhados em cada .pg
+function numerar(){
+  var txt=document.body.getAttribute('data-rodape')||'', tam=document.body.getAttribute('data-rodapetam')||'8';
+  var pgs=[].slice.call(document.querySelectorAll('.pg')), n=0;
+  for(var i=0;i<pgs.length;i++){
+    var pg=pgs[i]; if(pg.classList.contains('vazio'))continue;
+    n++;
+    var velho=pg.querySelector(':scope>.pgrod'); if(velho)pg.removeChild(velho);
+    var d=document.createElement('div'); d.className='pgrod'; d.setAttribute('aria-hidden','true');
+    d.innerHTML='<span class="pgrodt"></span><span class="pgrodn"></span>';
+    d.firstChild.textContent=txt; d.lastChild.textContent=String(n);
+    d.style.fontSize=tam+'pt';
+    pg.appendChild(d);
+  }
 }
 if(document.readyState==='complete')paginar();else addEventListener('load',paginar);
 })();` + '<' + '/script>';
@@ -1578,9 +1621,13 @@ thead{display:table-header-group}
 img{max-width:100%}
 ${css}
 @media screen{body{background:#e8ecf1}.pg{background:#fff;margin:12px auto;box-shadow:0 2px 12px rgba(0,0,0,.15);width:210mm;min-height:297mm;box-sizing:border-box;padding:25mm}.pg.pai{width:297mm;min-height:210mm}.pg.vazio{padding:25mm}
+.pgrod{position:absolute;left:25mm;right:25mm;bottom:9mm;display:flex;align-items:flex-end;gap:8mm;color:#555;line-height:1.25;border-top:.4pt solid #d8dee6;padding-top:1.6mm}
+.pgrodt{flex:1;white-space:pre-line;text-align:center}
+.pgrodn{font-weight:700;color:#333;white-space:nowrap}
+.pg.vazio .pgrod{display:none}
 .barra{position:sticky;top:0;z-index:5;background:#0b1f3a;color:#fff;font:14px system-ui;padding:10px 16px;display:flex;gap:12px;align-items:center}.barra button{font:inherit;background:#13a5a8;color:#fff;border:0;border-radius:8px;padding:8px 14px;cursor:pointer}}
-@media print{.barra{display:none}}
-</style></head><body>${opc.barra ? `<div class="barra"><b style="flex:1">${esc(opc.titulo || 'PPC')}</b><span>Na janela de impressão, escolha <b>Salvar como PDF</b>.</span><button onclick="print()">Salvar em PDF / Imprimir</button></div>` : ''}${html}${PAGINADOR}${opc.autoPrint ? '<script>addEventListener("load",()=>setTimeout(()=>print(),900))<\/script>' : ''}</body></html>`;
+@media print{.barra{display:none}.pgrod{display:none}}
+</style></head><body data-rodape="${esc(fTxt).replace(/"/g, '&quot;').replace(/\n/g, '&#10;')}" data-rodapetam="${fTam}">${opc.barra ? `<div class="barra"><b style="flex:1">${esc(opc.titulo || 'PPC')}</b><span>Na janela de impressão, escolha <b>Salvar como PDF</b>.</span><button onclick="print()">Salvar em PDF / Imprimir</button></div>` : ''}${html}${PAGINADOR}${opc.autoPrint ? '<script>addEventListener("load",()=>setTimeout(()=>print(),900))<\/script>' : ''}</body></html>`;
     return doc2;
   }
   root.PPC_PDF = { converter };
@@ -2028,7 +2075,7 @@ const $$ = (s, r) => [...(r || document).querySelectorAll(s)];
 const h = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const G = window.PPCG;
 const KEY = 'ppc-grad-rascunho-v1', KEY_ANT = 'ppc-grad-rascunho-anterior';
-const VERSAO = '1.6', VERSAO_DATA = '25/11/2026', VERSAO_TAG = 'beta';
+const VERSAO = '1.7', VERSAO_DATA = '26/11/2026', VERSAO_TAG = 'beta';
 const AUTOR = { nome: 'Prof. Alexandre Rodrigues Farias', linkedin: 'https://www.linkedin.com/in/alexandre-rodrigues-farias' };
 let P = null, ISS = [], step = 'ident', selDisc = null, RASCUNHO = null;
 
@@ -2122,7 +2169,12 @@ function revalidate() {
   });
   if (step === 'disc') atualizaListaDisc();
   if (step === 'ch') { const s = $('#q3'); if (s) s.innerHTML = quadro3HTML(); }
-  if (step === 'eixos') $$('[data-chEixo]').forEach(el => { const x = G.calc(P).porEixo.find(q => q.e.id === el.dataset.cheixo); if (x) el.textContent = `${G.fmtH(x.h)} h obrigatórias · ${x.ha} h/a em disciplinas`; });
+  if (step === 'eixos') {
+    const C = G.calc(P), num = G.numeracao(P);
+    $$('[data-chEixo]').forEach(el => { const x = C.porEixo.find(q => q.e.id === el.dataset.cheixo); if (x) el.textContent = `${G.fmtH(x.h)} h obrigatórias · ${x.ha} h/a em disciplinas`; });
+    const rb = $('#chResumoEixos'); if (rb) rb.innerHTML = resumoEixosHTML(C);
+    $$('[data-quadro]').forEach(el => { const [eid, op] = el.dataset.quadro.split(':'); const e = P.eixos.find(x => x.id === eid); if (e) el.outerHTML = quadroEixo(e, op === '1', num, C); });
+  }
 }
 function filtroIss(spec) {
   if (spec.startsWith('ref:')) { const id = spec.slice(4); return ISS.filter(i => i.ref === id); }
@@ -2205,6 +2257,17 @@ const inp = (path, val, o) => {
 const fld = (rot, html) => { const m = html.match(/data-bind="([^"]+)"/); return `<label class="f"><span>${rot}${m && REQ.has(m[1]) ? RQ : ''}</span>${html}</label>`; };
 const CURSOS_ENG = ['Engenharia Ambiental e Sanitária', 'Engenharia Civil', 'Engenharia de Automação Industrial', 'Engenharia de Computação', 'Engenharia de Controle e Automação', 'Engenharia de Materiais', 'Engenharia de Minas', 'Engenharia de Produção', 'Engenharia de Transportes', 'Engenharia Elétrica', 'Engenharia Mecânica', 'Engenharia Mecatrônica', 'Engenharia Metalúrgica', 'Engenharia Química'];
 
+// as três linhas do rodapé, montadas com os dados do cadastro (mesma regra usada no documento gerado)
+function rodapePadrao() {
+  const I = P.id, campusTxt = I.campus ? 'Campus ' + I.campus : 'Campus';
+  const inst = (I.instituicao || '').toLowerCase().split(' ').map((w, i) => w.length > 2 || i === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w).join(' ');
+  const ano = (String(I.data || '').match(/^(\d{4})/) || [])[1] || '';
+  return [
+    `Projeto Pedagógico do Curso de ${I.curso || 'Nome do Curso'} – ${campusTxt}${I.versao ? ' – versão ' + I.versao : ''}${ano ? ', ' + ano : ''}.`,
+    `${I.sigla ? I.sigla + ' – ' : ''}${inst} – ${campusTxt}`,
+    I.endereco || ''
+  ].filter(x => String(x).trim());
+}
 function vIdent() {
   const I = P.id, reest = I.tipo === 'reestruturacao';
   const FUN = { elab: ['Presidente', 'Membro'], reest: ['Presidente', 'Membro'], nde: ['Presidente', 'Membro'], colegiado: ['Coordenador (Presidente)', 'Membro', 'Representante discente'] };
@@ -2248,6 +2311,9 @@ function vIdent() {
     ${fld('Cidade', inp('id.local', I.local))}
     ${fld('Data', inp('id.data', I.data, { type: 'date' }))}
   </div>
+  <div class="flabel">Rodapé das páginas <span class="muted" style="font-weight:400">uma linha por linha do rodapé; em branco, o gerador monta a partir dos dados acima</span></div>
+  ${inp('id.rodape', I.rodape, { type: 'textarea', ph: rodapePadrao().join('\n') })}
+  <p class="g">Sai em fonte pequena no pé de cada página, com o número da folha, como nos PPCs da instituição.</p>
   <div class="flabel">Dirigentes (folha de rosto)</div><div class="grid">
     ${fld('Diretor-Geral', inp('id.dirigentes.dg', I.dirigentes.dg))}${fld('Vice-Diretor', inp('id.dirigentes.vdg', I.dirigentes.vdg))}${fld('Diretor de Graduação', inp('id.dirigentes.dirgrad', I.dirigentes.dirgrad))}${fld('Diretor-Adjunto de Graduação', inp('id.dirigentes.adj', I.dirigentes.adj))}${fld('Diretor do Campus', inp('id.dirigentes.campus', I.dirigentes.campus))}
   </div></div>
@@ -2320,18 +2386,61 @@ const COMP_DCN = [
 function renumComp() { P.competencias.forEach((c, i) => { c.cod = 'C' + (i + 1); }); }
 const chipsComp = (sel, attr) => P.competencias.filter(c => c.texto.trim()).map(c => `<label class="chip ${sel.includes(c.id) ? 'on' : ''}" title="${h(c.texto)}"><input type="checkbox" ${attr} data-cid="${c.id}"${sel.includes(c.id) ? ' checked' : ''}>${h(c.cod)}</label>`).join('') || '<span class="muted">Cadastre as competências na etapa <a href="#" data-step="comp">Competências do egresso</a>.</span>';
 // eixos
+function resumoEixosHTML(C) {
+  return (P.eixos.map((e, i) => `<tr><td>${i + 1} – ${h(e.nome || '(sem nome)')}</td><td class="c">${G.fmtH(C.porEixo[i].h)}</td><td class="c">${C.porEixo[i].ha}</td><td class="c">${C.porEixo[i].haOpt || '–'}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">Nenhum eixo cadastrado.</td></tr>')
+    + `<tr><td style="font-weight:700">Total das disciplinas obrigatórias</td><td class="c" style="font-weight:700">${G.fmtH(C.hObr)}</td><td class="c" style="font-weight:700">${C.haObr}</td><td></td></tr>`
+    + `<tr><td style="font-weight:700">Carga horária total do curso</td><td class="c" style="font-weight:700">${G.fmtH(C.hTotal)}</td><td class="c">–</td><td></td></tr>`;
+}
+// quadro das disciplinas de um eixo (obrigatórias ou optativas), com mover, editar e excluir
+function quadroEixo(e, optativa, num, C) {
+  const lista = P.disciplinas.filter(d => d.eixoId === e.id && !!d.optativa === optativa)
+    .sort((a, b) => (optativa ? 0 : (+a.periodo || 0) - (+b.periodo || 0)) || P.disciplinas.indexOf(a) - P.disciplinas.indexOf(b));
+  const somaHa = lista.reduce((a, d) => a + G.haDisc(d), 0);
+  const linhas = lista.map((d, i) => `<tr>
+      <td class="c">${h(num.get(d.id) || '–')}</td>
+      <td>${h(d.nome || '(sem nome)')}${optativa ? '' : ` <span class="muted">· ${+d.periodo || '?'}º per.</span>`}</td>
+      <td class="c">${G.fmtH(G.ha2h(G.haDisc(d), P.id.minutosHA))}</td>
+      <td class="c">${G.haDisc(d)}</td>
+      <td style="white-space:nowrap;text-align:right">
+        <button class="sm ghost" data-act="discMove" data-id="${d.id}" data-dir="-1"${i ? '' : ' disabled'} title="Mover para cima">↑</button>
+        <button class="sm ghost" data-act="discMove" data-id="${d.id}" data-dir="1"${i < lista.length - 1 ? '' : ' disabled'} title="Mover para baixo">↓</button>
+        <button class="sm ghost" data-act="mvAbrir" data-id="${d.id}" title="Abrir na etapa Disciplinas">editar</button>
+        <button class="sm ghost" data-act="discRm" data-id="${d.id}" title="Excluir do projeto">✕</button>
+      </td></tr>`).join('');
+  return `<div data-quadro="${e.id}:${optativa ? 1 : 0}"><div class="flabel" style="margin-top:12px">${optativa ? 'Disciplinas optativas do eixo' : 'Disciplinas obrigatórias do eixo'}</div>
+    <table class="t"><thead><tr><th style="width:90px">Nº/eixo</th><th>Disciplina</th><th style="width:92px">C.H. (h)</th><th style="width:92px">C.H. (h/a)</th><th style="width:176px"></th></tr></thead>
+    <tbody>${linhas || `<tr><td colspan="5" class="muted">Nenhuma disciplina ${optativa ? 'optativa ' : ''}neste eixo.</td></tr>`}
+    ${lista.length ? `<tr><td></td><td style="font-weight:700">Total</td><td class="c" style="font-weight:700">${G.fmtH(G.ha2h(somaHa, P.id.minutosHA))}</td><td class="c" style="font-weight:700">${somaHa}</td><td></td></tr>` : ''}</tbody></table>
+    <div class="row" style="gap:8px;margin-top:6px"><button class="sm" data-act="discAddEixo" data-id="${e.id}" data-opt="${optativa ? 1 : 0}">+ ${optativa ? 'Optativa' : 'Disciplina'} neste eixo</button>${optativa || !window.PPCG_EQUAL ? '' : `<button class="sm ghost" data-act="eqAbrir" data-p="1">+ Equalizada</button>`}</div></div>`;
+}
 function vEixos() {
-  const C = G.calc(P), eng = P.id.tipoCurso === 'engenharia';
-  return `<h2>Eixos de conteúdos e atividades</h2><p class="lead">Quadro 1 da IN DIRGRAD nº 01/2023. Cada eixo representa uma área do conhecimento do curso (ex.: Eixo 1 – Matemática). A carga horária e o desdobramento em disciplinas são calculados a partir da etapa Disciplinas.</p>` +
-    P.eixos.map((e, i) => `<div class="card"><div class="row"><h3 style="flex:1">Eixo ${i + 1}${e.nome ? ' – ' + h(e.nome) : ''}</h3><span class="muted" data-chEixo="${e.id}">${G.fmtH(C.porEixo[i].h)} h obrigatórias · ${C.porEixo[i].ha} h/a em disciplinas</span>${i ? `<button class="sm ghost" data-act="eixoUp" data-i="${i}" title="Subir">↑</button>` : ''}<button class="sm ghost" data-act="eixoRm" data-id="${e.id}">Excluir</button></div>
+  const C = G.calc(P), eng = P.id.tipoCurso === 'engenharia', num = G.numeracao(P);
+  const A = P.atv;
+  const topo = `<div class="card"><h3>Carga horária do curso</h3>
+    <p class="g">A carga horária obrigatória é a soma das disciplinas obrigatórias lançadas na etapa <b>Disciplinas</b> — por isso ela não se digita aqui: altere os valores abaixo, que são os que a determinam, e os quadros se refazem sozinhos.</p>
+    <div class="grid">
+      ${fld('Duração da hora-aula (minutos)', inp('id.minutosHA', P.id.minutosHA, { type: 'number', min: 1 }))}
+      ${fld('Períodos do curso', inp('id.nPeriodos', P.id.nPeriodos, { type: 'number', min: 1 }))}
+      <label class="f"><span>Optativas – mínimo a cumprir (h)</span><input type="number" min="0" data-atv="optMin" data-af="h" value="${+A.optMin.h || 0}"></label>
+      <label class="f"><span>Atividades complementares (h)</span><input type="number" min="0" data-atv="compl" data-af="h" value="${+A.compl.h || 0}"></label>
+      <label class="f"><span>Ações de extensão (h)</span><input type="number" min="0" data-atv="ext" data-af="h" value="${+A.ext.h || 0}"></label>
+      <label class="f"><span>Estágio curricular obrigatório (h)</span><input type="number" min="0" data-atv="estagio" data-af="h" value="${+A.estagio.h || 0}"></label>
+    </div>
+    <table class="t" style="margin-top:10px"><thead><tr><th>Eixo</th><th style="width:150px">C.H. obrigatória (h)</th><th style="width:150px">Horas-aula (h/a)</th><th style="width:130px">Optativas (h/a)</th></tr></thead><tbody id="chResumoEixos">${resumoEixosHTML(C)}</tbody></table>
+    <p class="g">As demais atividades (eletivas, PFC, estágio supervisionado) ficam na etapa <b>Atividades e carga horária</b>.</p></div>`;
+  const cartao = (e, i) => `<div class="card"><div class="row"><h3 style="flex:1">Eixo ${i + 1}${e.nome ? ' – ' + h(e.nome) : ''}</h3><span class="muted" data-chEixo="${e.id}">${G.fmtH(C.porEixo[i].h)} h obrigatórias · ${C.porEixo[i].ha} h/a em disciplinas</span>${i ? `<button class="sm ghost" data-act="eixoUp" data-i="${i}" title="Subir">↑</button>` : ''}${i < P.eixos.length - 1 ? `<button class="sm ghost" data-act="eixoDown" data-i="${i}" title="Descer">↓</button>` : ''}<button class="sm ghost" data-act="eixoRm" data-id="${e.id}">Excluir</button></div>
       <label class="f"><span>Nome do eixo${RQ}</span><input data-e="${e.id}" data-f="nome" value="${h(e.nome)}"></label>
       <div class="flabel">Objetivos do eixo${RQ} <span class="muted" style="font-weight:400">um por linha</span></div><textarea data-e="${e.id}" data-f="objetivos">${h(e.objetivos)}</textarea>
       ${eng ? `<div class="flabel">Competências e habilidades desenvolvidas${RQ}</div><div class="chips" data-ebox="${e.id}:competencias">${chipsComp(e.competencias, `data-ecomp="${e.id}"`)}</div>` : ''}
       <div class="flabel">Ementa do eixo – conteúdos obrigatórios${RQ}</div><textarea data-e="${e.id}" data-f="ementa">${h(e.ementa)}</textarea>
       <div class="flabel">Ementa do eixo – conteúdos optativos <span class="muted" style="font-weight:400">opcional</span></div><textarea data-e="${e.id}" data-f="ementaOpt" style="min-height:50px">${h(e.ementaOpt)}</textarea>
-      <div class="muted" style="margin-top:8px">Disciplinas: ${P.disciplinas.filter(d => d.eixoId === e.id).map(d => h(d.nome || '(sem nome)')).join(' · ') || 'nenhuma ainda'}</div>
-      <div data-iss="ref:${e.id}"></div></div>`).join('') +
-    `<div class="row" style="gap:8px"><button class="pri" data-act="eixoAdd">+ Eixo</button></div><div data-iss="eixos|geral"></div>`;
+      ${quadroEixo(e, false, num, C)}
+      ${quadroEixo(e, true, num, C)}
+      <div data-iss="ref:${e.id}"></div></div>
+      <div class="row" style="gap:8px;margin:-4px 0 14px"><button class="sm ghost" data-act="eixoAdd" data-i="${i}">+ Eixo depois deste</button></div>`;
+  return `<h2>Eixos de conteúdos e atividades</h2><p class="lead">Quadro 1 da IN DIRGRAD nº 01/2023. Cada eixo representa uma área do conhecimento do curso (ex.: Eixo 1 – Matemática).</p>` +
+    topo + P.eixos.map(cartao).join('') +
+    `<div class="row" style="gap:8px"><button class="pri" data-act="eixoAdd">+ Eixo no fim</button></div><div data-iss="eixos|geral"></div>`;
 }
 // disciplinas
 function statusDisc(d) { const it = ISS.filter(i => i.ref === d.id); const e = it.filter(i => i.sev === 'erro').length; return { cls: e ? 'e' : it.length ? 'w' : 'o', n: e || it.length }; }
@@ -2353,23 +2462,30 @@ function editorDiscHTML(d) {
     return `<div class="chips" data-dbox="${f}">${cand.map(x => `<label class="chip ${lista.includes(x.id) ? 'on' : ''}"><input type="checkbox" data-dref="${f}" data-id="${d.id}" data-x="${x.id}"${lista.includes(x.id) ? ' checked' : ''}>${h(num.get(x.id) + ' ' + x.nome)}</label>`).join('') || '<span class="muted">Nenhuma disciplina elegível.</span>'}${fora.map(id => { const x = P.disciplinas.find(y => y.id === id); return `<span class="chip bad" data-act="refRm" data-f="${f}" data-id="${d.id}" data-x="${id}" title="Fora do período permitido — clique para remover">✕ ${h(x ? x.nome : 'removida')}</span>`; }).join('')}</div>`;
   };
   const abnt = ' <span class="muted" style="font-weight:400">uma por linha, ABNT: SOBRENOME, Nome. <i>Título</i>. ed. Local: Editora, ano.</span>';
-  return `<div class="card"><div class="row"><h3 style="flex:1">${h(num.get(d.id) || '')} ${h(d.nome || '(sem nome)')}</h3><span class="muted" id="dH"></span><button class="sm ghost" data-act="discRm" data-id="${d.id}">Excluir</button></div>
+  // disciplina equalizada: ementa, carga horária e bibliografia vêm da resolução e não se editam aqui
+  const eq = eqDe(d);
+  const ro = txt => `<div class="rotext">${h(String(txt || '').trim()) || '<i>—</i>'}</div>`;
+  const aviso = eq ? `<div class="eqnota"><b>🔒 Disciplina equalizada — ${h(eq.res || 'resolução do CGRAD')}</b>
+    <span>Nome, carga horária, ementa e bibliografia são os da resolução e não podem ser alterados aqui: eles valem igualmente para todos os cursos da instituição. Continuam seus: o eixo, o período, o tipo, a área de formação, as competências e os pré e correquisitos.</span>
+    <span class="row" style="gap:8px;margin-top:6px"><button class="sm" data-act="eqNorma" data-id="${d.id}">Ver o trecho da resolução</button><button class="sm ghost" data-act="eqSinc" data-id="${d.id}">Recarregar os dados da norma</button></span></div>` : '';
+  return `<div class="card"><div class="row"><h3 style="flex:1">${eq ? '🔒 ' : ''}${h(num.get(d.id) || '')} ${h(d.nome || '(sem nome)')}</h3><span class="muted" id="dH"></span><button class="sm ghost" data-act="discRm" data-id="${d.id}">Excluir</button></div>
+    ${aviso}
     <div class="grid">
-      <label class="f"><span>Nome da disciplina${RQ}</span><input data-d="${d.id}" data-f="nome" value="${h(d.nome)}"></label>
+      <label class="f"><span>Nome da disciplina${RQ}</span>${eq ? ro(d.nome) : `<input data-d="${d.id}" data-f="nome" value="${h(d.nome)}">`}</label>
       <label class="f"><span>Eixo${RQ}</span>${sel('eixoId', [['', 'Selecione…'], ...P.eixos.map((e, i) => [e.id, `${i + 1} – ${e.nome || '(sem nome)'}`])])}</label>
       <label class="f"><span>Tipo</span>${sel('optativa', [['false', 'Obrigatória'], ['true', 'Optativa']])}</label>
       <label class="f"><span>Período${d.optativa ? ' recomendado' : ''}</span>${sel('periodo', Array.from({ length: C.nP }, (_, i) => [i + 1, (i + 1) + 'º']))}</label>
-      <label class="f"><span>Horas-aula teóricas</span><input type="number" min="0" step="15" data-d="${d.id}" data-f="haT" value="${+d.haT || 0}"></label>
-      <label class="f"><span>Horas-aula práticas</span><input type="number" min="0" step="15" data-d="${d.id}" data-f="haP" value="${+d.haP || 0}"></label>
+      <label class="f"><span>Horas-aula teóricas</span>${eq ? ro(String(+d.haT || 0)) : `<input type="number" min="0" step="15" data-d="${d.id}" data-f="haT" value="${+d.haT || 0}">`}</label>
+      <label class="f"><span>Horas-aula práticas</span>${eq ? ro(String(+d.haP || 0)) : `<input type="number" min="0" step="15" data-d="${d.id}" data-f="haP" value="${+d.haP || 0}">`}</label>
       <label class="f"><span>Área de formação (DCN)${RQ}</span>${sel('area', [['', 'Selecione…'], ...G.AREAS_DCN])}</label>
       <label class="f"><span>Característica${RQ}</span>${sel('caracteristica', [['', 'Selecione…'], ...G.CARACT])}</label>
     </div>
     ${eng ? `<div class="flabel">Competências/habilidades</div><div class="chips" data-dbox="competencias">${chipsComp(d.competencias, `data-dcomp="${d.id}"`)}</div>` : ''}
     <div class="flabel">Pré-requisitos <span class="muted" style="font-weight:400">disciplinas de períodos anteriores</span></div>${ref(d.prereqs, 'prereqs', x => !x.optativa && +x.periodo < +d.periodo)}
     <div class="flabel">Correquisitos <span class="muted" style="font-weight:400">disciplinas do mesmo período</span></div>${ref(d.coreqs, 'coreqs', x => +x.periodo === +d.periodo)}
-    <div class="flabel">Ementa${RQ}</div>${ta('ementa', 'Descrição dos conteúdos da disciplina')}
-    <div class="flabel">Bibliografia básica${RQ} <span class="cnt" id="cBB"></span>${abnt}</div>${ta('bibBasica')}
-    <div class="flabel">Bibliografia complementar${RQ} <span class="cnt" id="cBC"></span></div>${ta('bibComp')}
+    <div class="flabel">Ementa${RQ}${eq ? ' <span class="muted" style="font-weight:400">— texto da resolução</span>' : ''}</div>${eq ? ro(d.ementa) : ta('ementa', 'Descrição dos conteúdos da disciplina')}
+    <div class="flabel">Bibliografia básica${RQ} <span class="cnt" id="cBB"></span>${eq ? ' <span class="muted" style="font-weight:400">— Deliberação CGRAD nº 32/22</span>' : abnt}</div>${eq ? ro(d.bibBasica) : ta('bibBasica')}
+    <div class="flabel">Bibliografia complementar${RQ} <span class="cnt" id="cBC"></span></div>${eq ? ro(d.bibComp) : ta('bibComp')}
     <div data-iss="ref:${d.id}"></div></div>`;
 }
 function vDisc() {
@@ -2402,6 +2518,25 @@ const mxGuarda = () => { try { localStorage.setItem('ppcg-mx', JSON.stringify(Ob
 const corEixo = id => { const i = P.eixos.findIndex(e => e.id === id); return i < 0 ? ['#f5f5f5', '#9e9e9e'] : CORES[i % CORES.length]; };
 const corDisc = d => MX.cor === 'area' ? (COR_AREA[d.area] || ['#f5f5f5', '#9e9e9e']) : MX.cor === 'car' ? (COR_CAR[d.caracteristica] || ['#f5f5f5', '#9e9e9e']) : MX.cor === 'nat' ? COR_NAT[G.tp(d)] : corEixo(d.eixoId);
 const eqDe = d => d && d.caracteristica === 'Equalizada' && G.eqBusca ? G.eqBusca(d.nome) : null;
+// traz da resolução tudo o que ela fixa: nome, carga horária, ementa e bibliografia
+function sincEqDisc(d, eq) {
+  if (!eq) return false;
+  let mudou = false;
+  const põe = (f, v) => { if (v != null && String(d[f] || '') !== String(v)) { d[f] = v; mudou = true; } };
+  põe('nome', eq.nome);
+  põe('ementa', eq.ementa || '');
+  põe('bibBasica', (eq.bibBasica || []).join('\n'));
+  põe('bibComp', (eq.bibComp || []).join('\n'));
+  const ha = +eq.ha || 0;
+  if (ha && G.haDisc(d) !== ha) { if (eq.pratica) { d.haT = 0; d.haP = ha; } else { d.haT = ha; d.haP = 0; } mudou = true; }
+  return mudou;
+}
+// roda ao abrir, importar ou incluir equalizadas: nenhuma delas fica com texto diferente do da norma
+function sincEq() {
+  let n = 0;
+  (P.disciplinas || []).forEach(d => { const eq = eqDe(d); if (eq && sincEqDisc(d, eq)) n++; });
+  return n;
+}
 function conflitos(d) {
   const by = id => P.disciplinas.find(x => x.id === id), out = [];
   d.prereqs.forEach(id => { const o = by(id); if (o && !d.optativa && (o.optativa || +o.periodo >= +d.periodo)) out.push(`pré-requisito “${o.nome}” (${o.optativa ? 'optativa' : o.periodo + 'º'}) não está antes`); });
@@ -2685,6 +2820,7 @@ function eqModal(per) {
 document.addEventListener('input', ev => { if (ev.target.id === 'eqBusca') { const q = G.norm(ev.target.value); $$('#eqLista .eqi').forEach(l => { l.style.display = !q || l.dataset.busca.includes(q) ? '' : 'none'; }); } });
 // liga pré e correquisitos escritos na resolução às disciplinas do projeto
 function ligarEq() {
+  sincEq();
   const sigla = n => (n.match(/\(([^)]+)\)\s*$/) || [])[1] || '';
   const alvo = txt => {
     const n = G.norm(txt.replace(/^(e|ou)\s+/i, '')); if (n.length < 3) return null;
@@ -2759,7 +2895,7 @@ document.addEventListener('change', ev => {
   }
   if (el.id === 'fAbrir' && el.files[0]) {
     const r = new FileReader();
-    r.onload = () => { try { const o = JSON.parse(r.result); if (!o.meta || o.meta.formato !== 'ppc-grad') throw 0; P = migrate(o); selDisc = null; RASCUNHO = null; touch(true); toast('Projeto aberto.'); } catch (e) { toast('Arquivo inválido: use um projeto salvo por este gerador.'); } };
+    r.onload = () => { try { const o = JSON.parse(r.result); if (!o.meta || o.meta.formato !== 'ppc-grad') throw 0; P = migrate(o); selDisc = null; RASCUNHO = null; sincEq(); touch(true); toast('Projeto aberto.'); } catch (e) { toast('Arquivo inválido: use um projeto salvo por este gerador.'); } };
     r.readAsText(el.files[0]); el.value = '';
   }
 });
@@ -2785,9 +2921,36 @@ document.addEventListener('click', async ev => {
     case 'compAdd': P.competencias.push(G.novaCompetencia()); renumComp(); touch(true); setTimeout(() => { const l = $$('[data-c]').pop(); if (l) l.focus(); }, 30); break;
     case 'compRm': P.competencias = P.competencias.filter(c => c.id !== id); [...P.eixos, ...P.disciplinas].forEach(o => { o.competencias = o.competencias.filter(x => x !== id); }); renumComp(); touch(true); break;
     case 'compDcn': { const tem = new Set(P.competencias.map(c => G.norm(c.texto))); COMP_DCN.forEach(t => { if (!tem.has(G.norm(t))) P.competencias.push(G.novaCompetencia({ texto: t })); }); renumComp(); touch(true); toast('Competências gerais da DCN incluídas. Acrescente as específicas da habilitação.'); break; }
-    case 'eixoAdd': P.eixos.push(G.novoEixo()); touch(true); setTimeout(() => { const l = $$('[data-f="nome"][data-e]').pop(); if (l) { l.focus(); l.scrollIntoView({ block: 'center' }); } }, 30); break;
+    case 'eixoAdd': {
+      const novo = G.novoEixo(), apos = t.dataset.i != null ? +t.dataset.i : -1;
+      if (apos >= 0) P.eixos.splice(apos + 1, 0, novo); else P.eixos.push(novo);
+      touch(true);
+      setTimeout(() => { const l = $(`[data-f="nome"][data-e="${novo.id}"]`); if (l) { l.focus(); l.scrollIntoView({ block: 'center' }); } }, 30);
+      break;
+    }
     case 'eixoRm': { const usados = P.disciplinas.filter(d => d.eixoId === id).length; if (usados && !confirmar('eixo' + id, `Há ${usados} disciplina(s) neste eixo; elas ficarão sem eixo. Clique de novo para excluir.`)) break; P.eixos = P.eixos.filter(e => e.id !== id); P.disciplinas.forEach(d => { if (d.eixoId === id) d.eixoId = ''; }); touch(true); break; }
     case 'eixoUp': { const i = +t.dataset.i, e = P.eixos; [e[i - 1], e[i]] = [e[i], e[i - 1]]; touch(true); break; }
+    case 'eixoDown': { const i = +t.dataset.i, e = P.eixos; if (i + 1 < e.length) { [e[i + 1], e[i]] = [e[i], e[i + 1]]; touch(true); } break; }
+    // move a disciplina entre as suas vizinhas do mesmo eixo: muda a ordem e, com ela, o número da disciplina
+    case 'discMove': {
+      const d = P.disciplinas.find(x => x.id === id); if (!d) break;
+      const dir = +t.dataset.dir;
+      const grupo = P.disciplinas.filter(x => x.eixoId === d.eixoId && !!x.optativa === !!d.optativa)
+        .sort((a, b) => (d.optativa ? 0 : (+a.periodo || 0) - (+b.periodo || 0)) || P.disciplinas.indexOf(a) - P.disciplinas.indexOf(b));
+      const k = grupo.indexOf(d), viz = grupo[k + dir]; if (!viz) break;
+      // entre períodos diferentes o número segue o período: a disciplina acompanha o vizinho
+      if (!d.optativa && +d.periodo !== +viz.periodo) d.periodo = +viz.periodo;
+      else { const a = P.disciplinas.indexOf(d), b = P.disciplinas.indexOf(viz); [P.disciplinas[a], P.disciplinas[b]] = [P.disciplinas[b], P.disciplinas[a]]; }
+      touch(true); break;
+    }
+    case 'discAddEixo': {
+      const op = t.dataset.opt === '1';
+      const d = G.novaDisciplina({ periodo: op ? G.calc(P).nP : 1, optativa: op, eixoId: id });
+      P.disciplinas.push(d); selDisc = d.id; touch(true);
+      setTimeout(() => { const n = $(`[data-quadro="${id}:${op ? 1 : 0}"]`); if (n) n.scrollIntoView({ block: 'center' }); }, 30);
+      toast('Disciplina criada neste eixo. Abra-a em “editar” para preencher ementa, carga horária e bibliografia.');
+      break;
+    }
     case 'discAdd': { const op = t.dataset.p === 'opt'; const d = G.novaDisciplina({ periodo: op ? G.calc(P).nP : +t.dataset.p, optativa: op, eixoId: P.eixos.length === 1 ? P.eixos[0].id : '' }); P.disciplinas.push(d); selDisc = d.id; touch(true); setTimeout(() => { const n = $(`[data-d="${d.id}"][data-f="nome"]`); if (n) n.focus(); }, 30); break; }
     case 'discRm': { const d = P.disciplinas.find(x => x.id === id); if (!confirmar('d' + id, `Excluir “${d.nome || 'disciplina'}”? Clique de novo para confirmar.`)) break; P.disciplinas = P.disciplinas.filter(x => x.id !== id); P.disciplinas.forEach(x => { x.prereqs = x.prereqs.filter(y => y !== id); x.coreqs = x.coreqs.filter(y => y !== id); }); selDisc = null; touch(true); break; }
     case 'eqAbrir': eqModal(t.dataset.p); break;
@@ -2798,6 +2961,8 @@ document.addEventListener('click', async ev => {
       P.disciplinas.push(...novas); ligarEq(); selDisc = novas[0].id; modal(''); touch(true);
       toast(`${novas.length} disciplina(s) equalizada(s) incluída(s). Confira o eixo e a área de formação de cada uma.`); break;
     }
+    case 'eqNorma': { const d = P.disciplinas.find(x => x.id === id), eq = eqDe(d); if (!eq) break; const r = (DOCS_RES.find(x => eq.res && eq.res.indexOf(x[1].replace('Resolução', 'Res.')) >= 0) || [])[0]; if (r) verNorma(r, [d.nome], eq.res); else toast('Resolução não identificada: veja em “Normas e documentos”.'); break; }
+    case 'eqSinc': { const d = P.disciplinas.find(x => x.id === id), eq = eqDe(d); if (!eq) break; toast(sincEqDisc(d, eq) ? 'Dados recarregados da resolução.' : 'A disciplina já está igual à resolução.'); touch(true); break; }
     case 'refRm': { const d = P.disciplinas.find(x => x.id === id); d[t.dataset.f] = d[t.dataset.f].filter(y => y !== t.dataset.x); touch(true); break; }
     case 'memAdd': { const c = P.id.comissoes[t.dataset.k]; c.membros.push({ nome: '', funcao: c.membros.length ? 'Membro' : (t.dataset.k === 'colegiado' ? 'Coordenador (Presidente)' : 'Presidente'), depto: '' }); touch(true); setTimeout(() => { const l = $$(`[data-mem="${t.dataset.k}"][data-f="nome"]`).pop(); if (l) l.focus(); }, 30); break; }
     case 'memRm': P.id.comissoes[t.dataset.k].membros.splice(+t.dataset.i, 1); touch(true); break;
@@ -2914,10 +3079,10 @@ function fonteAlvo(i) {
   if (r) return { doc: 'res' + r[1], terms: disc ? [disc] : [], rot: f };
   if (/IN DIRGRAD nº 02\/2023/.test(f)) return { doc: 'in02', terms: ['padronizamos que a bibliografia basica'], rot: f };
   if (/ABNT/.test(f)) return { info: true, rot: f };
-  if (/CNE\/CES nº 2\/2019/.test(f)) return { url: LEIS[0][1], rot: f };
-  if (/CNE\/CES nº 7\/2018/.test(f)) return { url: LEIS[1][1], rot: f };
-  if (/CNE\/CES nº 2\/2007/.test(f)) return { url: LEIS[2][1], rot: f };
-  if (/CEPE nº 18\/22/.test(f) && !/IN DIRGRAD/.test(f)) return { url: LEIS[3][1], rot: f };
+  if (/CNE\/CES nº 2\/2019/.test(f)) return { lei: LEIS[0], rot: f };
+  if (/CNE\/CES nº 7\/2018/.test(f)) return { lei: LEIS[1], rot: f };
+  if (/CNE\/CES nº 2\/2007/.test(f)) return { lei: LEIS[2], rot: f };
+  if (/CEPE nº 18\/22/.test(f) && !/IN DIRGRAD/.test(f)) return { lei: LEIS[3], rot: f };
   if (/IN DIRGRAD nº 01\/2023/.test(f)) {
     const T = t => ({ doc: 'in01', terms: t, rot: f });
     if (/caracteres/.test(m) && titulo) return T([titulo.replace(/^[\d.]+\s*/, '').split(' ').slice(0, 4).join(' '), 'Maximo de caracteres']);
@@ -2935,7 +3100,17 @@ function fonteAlvo(i) {
 }
 async function abrirFonte(i) {
   const a = fonteAlvo(i);
-  if (a.url) { window.open(a.url, '_blank', 'noopener'); return; }
+  // normas de fora da instituição: o texto fica no site do órgão. Abre por um link de verdade, que nenhum
+  // bloqueador de janelas impede, e mostra o que a norma exige e o endereço, para copiar se o site mudou.
+  if (a.lei) {
+    const [tit, u, desc] = a.lei;
+    modal(`<h3>${h(a.rot)}</h3><p style="margin:0 0 4px"><b>${h(tit)}</b></p><p class="muted" style="margin:0 0 10px">${h(desc)}</p>
+      <p class="muted" style="margin:0 0 8px">Esta norma é externa à instituição: o texto está no site do órgão e não pode ser embutido no gerador. O botão abaixo abre o documento em outra aba.</p>
+      <div class="row" style="gap:8px"><input id="shareUrl" value="${h(u)}" readonly style="flex:1"><button class="sm" data-share="copiar">Copiar</button></div>
+      <div class="row" style="justify-content:flex-end;gap:8px;margin-top:12px"><button class="ghost" data-mact="cancelar">Fechar</button><a class="btn pri" href="${h(u)}" target="_blank" rel="noopener">Abrir no site oficial ${IC.link}</a></div>
+      <p class="g" style="margin-top:10px">Se o endereço não abrir, o órgão pode tê-lo mudado de lugar: procure o documento pelo nome no site do MEC ou da Diretoria de Graduação. A lista completa fica em <b>Normas e documentos</b>.</p>`);
+    return;
+  }
   if (a.info) { modal(`<h3>${h(a.rot)}</h3><p>A norma <b>ABNT NBR 6023</b> define como escrever as referências: <b>SOBRENOME, Nome. <i>Título</i>: subtítulo. Edição. Local: Editora, ano.</b> Ex.: STEWART, J. <i>Cálculo</i>. 6. ed. São Paulo: Cengage Learning, 2009.</p><p class="muted">O texto da norma é vendido pela ABNT e não pode ser incluído no gerador. A IN DIRGRAD nº 02/2023 trata da bibliografia das disciplinas.</p><div class="row" style="justify-content:flex-end;gap:8px"><button class="ghost" data-mact="cancelar">Fechar</button><button class="pri" data-nver="in02" data-nterms="padronizamos que a bibliografia basica">Abrir a IN DIRGRAD nº 02/2023</button></div>`); return; }
   if (a.escolha) { modal(`<h3>${h(a.rot)}</h3><p class="muted">Escolha a resolução da área da disciplina:</p><div class="ndocs">${a.escolha.map(id => { const d = DOCS_RES.find(x => x[0] === id); return `<div class="ndoc"><div class="ni">PDF</div><div style="flex:1"><b>${h(d[1])}</b><div class="muted" style="font-size:12.5px">${h(d[2])}</div></div><button class="sm" data-nver="${id}" data-nterms="${h(a.terms.join('|'))}">Ler</button></div>`; }).join('')}</div><div class="row" style="justify-content:flex-end;margin-top:10px"><button class="ghost" data-mact="cancelar">Fechar</button></div>`); return; }
   verNorma(a.doc, a.terms, a.rot);
@@ -3086,7 +3261,17 @@ function abrirPrevia(html, titulo, ancora) {
   o.innerHTML = `<div class="pv-bar"><b>${h(titulo)}</b><span class="muted">Clique em <b>Salvar em PDF</b> e, na janela de impressão, escolha “Salvar como PDF”.${ehChromium() ? '' : ' <b style="color:#b45309">Neste navegador o PDF pode sair sem cabeçalho, rodapé e número de página; para o PDF completo use Chrome ou Edge, ou baixe o arquivo .docx.</b>'}</span><button class="tb pri" data-pv="print">Salvar em PDF</button><button class="tb" data-pv="baixar">Baixar para imprimir</button><button class="tb" data-pv="fechar">Fechar</button></div><iframe id="pvFrame"></iframe>`;
   o.classList.add('on');
   const _fr = $('#pvFrame');
-  _fr.onload = ancora ? () => { try { const el = _fr.contentDocument.getElementById(ancora); if (el) el.scrollIntoView({ block: 'center' }); } catch (e) { } } : null;
+  // a paginação roda dentro do quadro ao carregar e muda a posição de tudo: só depois dela a rolagem acerta o ponto
+  _fr.onload = ancora ? () => {
+    const vai = () => { try { const d = _fr.contentDocument, el = d && d.getElementById(ancora); if (!el) return false; el.scrollIntoView({ block: 'center' }); el.classList.add('cmt-alvo'); setTimeout(() => el.classList.remove('cmt-alvo'), 4000); return true; } catch (e) { return false; } };
+    vai();
+    let n = 0;
+    const t = setInterval(() => {
+      let pronto = false;
+      try { pronto = !!_fr.contentDocument.documentElement.getAttribute('data-paginado'); } catch (e) { pronto = true; }
+      if (pronto || ++n > 60) { clearInterval(t); setTimeout(vai, 60); }
+    }, 100);
+  } : null;
   _fr.srcdoc = html.replace('</body>', '<style>@media screen{body{background:#e8ecf1}}</style></body>'); o._html = html; o._titulo = titulo;
 }
 document.addEventListener('click', ev => {
@@ -3465,12 +3650,35 @@ const cmtPode = () => !!(P && P.id);
 const cN = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 const SEV_ROT = { erro: 'Pendência', aviso: 'Ajuste', obs: 'Observação' };
 
-// um comentário por seção do PPC e, quando o apontamento é de disciplina, por disciplina
-function cmtGrupos() {
+// rótulos da ficha de identificação do curso: levam cada campo ao seu lugar no documento
+const CMT_FICHA = {
+  curso: 'Denominação do Curso', titulacao: 'Titulação acadêmica conferida', modalidade: 'Modalidade de ensino',
+  turno: 'Turno de funcionamento', campusId: 'Endereço de funcionamento', regime: 'Regime letivo',
+  vagasAut: 'Número de vagas autorizadas', vagasProc: 'Número de vagas por processo seletivo',
+  periodicidade: 'Periodicidade do processo seletivo', formaIngresso: 'Formas de Ingresso',
+  integPrev: 'Tempo para Integralização Curricular', integMax: 'Tempo para Integralização Curricular',
+  minutosHA: 'Regime letivo', nPeriodos: 'Tempo para Integralização Curricular',
+  curso2: 'Denominação do Curso', local: 'PROJETO PEDAGÓGICO DO CURSO DE', data: 'PROJETO PEDAGÓGICO DO CURSO DE',
+  versao: 'PROJETO PEDAGÓGICO DO CURSO DE', instituicao: 'FICHA DE IDENTIFICAÇÃO DO CURSO', sigla: 'FICHA DE IDENTIFICAÇÃO DO CURSO'
+};
+const CMT_COM = { elab: 'Comissão de elaboração', reest: 'Comissão de reestruturação', nde: 'Núcleo Docente Estruturante', colegiado: 'Colegiado de Curso' };
+// etapa do gerador → trecho do documento onde o apontamento deve aparecer (em ordem de preferência)
+const CMT_SEC = {
+  ident: ['FICHA DE IDENTIFICAÇÃO DO CURSO'],
+  textos: ['1 INTRODUÇÃO'],
+  comp: ['4.1 Perfil do egresso'],
+  eixos: ['Quadro 1 – Eixos de Conteúdos', '4.4 Estrutura curricular'],
+  disc: ['Quadro 2 – Apresentação das disciplinas', '4.4 Estrutura curricular'],
+  ch: ['Quadro 3 – Síntese da distribuição', '4.4.1 Quadros-síntese'],
+  pessoal: ['6.1 Pessoal docente']
+};
+// um comentário por ponto do documento: cada campo da ficha, cada seção de texto e cada disciplina no seu lugar
+function cmtGrupos(idxDe) {
   const g = new Map();
   ISS.forEach((i, k) => {
-    const ch = (i.sec || '') + '|' + (i.ref || '');
-    if (!g.has(ch)) g.set(ch, { sec: i.sec, ref: i.ref || '', idx: [], itens: [], pg: 1, id: '' });
+    const alvo = idxDe(i);
+    const ch = alvo >= 0 ? 'b' + alvo : 'x' + (i.sec || '') + '|' + (i.ref || '');
+    if (!g.has(ch)) g.set(ch, { sec: i.sec, ref: i.ref || '', alvo, idx: [], itens: [], pg: 1, id: '' });
     const o = g.get(ch); o.idx.push(k); o.itens.push(i);
   });
   return [...g.values()];
@@ -3492,7 +3700,9 @@ const CMT_CSS = `
 .cmt-res th{background:#1f3864;color:#fff;padding:3pt 5pt;text-align:left;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .cmt-res td{border:.5pt solid #b9c4d4;padding:3pt 5pt;vertical-align:top}
 .cmt-res td.c{text-align:center;white-space:nowrap}
-@media screen{.cmt-hl{scroll-margin-top:40px}}`;
+@media screen{.cmt-hl{scroll-margin-top:60px}
+.cmt-alvo{outline:3px solid #e0a800;outline-offset:3px;animation:cmtpulso 1.1s ease-in-out 3}
+@keyframes cmtpulso{0%,100%{outline-color:#e0a800}50%{outline-color:rgba(224,168,0,0)}}}`;
 
 async function cmtMontar() {
   if (CMT.html) return CMT;
@@ -3518,27 +3728,49 @@ async function cmtMontar() {
     if (i < 0 && txt) i = ult(b => b.t.length < txt.length + 16 && b.t.indexOf(txt) >= 0);
     return i;
   };
+  // acha um texto qualquer (rótulo de quadro, rótulo da ficha): vale a última ocorrência, que é a do corpo
+  const achaTexto = alvo0 => {
+    const alvo = cN(alvo0); if (!alvo) return -1;
+    for (let i = blocos.length - 1; i >= 0; i--) { const t = blocos[i].t; if (t === alvo || (t.indexOf(alvo) === 0 && t.length < alvo.length + 34)) return i; }
+    return -1;
+  };
+  const achaApos = (alvo0, de) => {
+    const alvo = cN(alvo0); if (!alvo) return -1;
+    for (let i = Math.max(0, de); i < blocos.length; i++) { const t = blocos[i].t; if (t === alvo || (t.indexOf(alvo) === 0 && t.length < alvo.length + 34)) return i; }
+    return -1;
+  };
   const achaDisc = (sec, ref) => {
     const d = (P.disciplinas || []).find(x => x.id === ref); if (!d) return -1;
     const nm = cN(d.nome); if (!nm) return -1;
-    const de = Math.max(0, achaTitulo(nomes[sec] || ''));
     // nos quadros a célula costuma vir como "Disciplina: Nome"
     const bate = b => b.t === nm || (b.t.indexOf(nm) >= 0 && b.t.length < nm.length + 30);
+    const de = Math.max(0, achaTexto('Quadro 2'));
     for (let i = de; i < blocos.length; i++) if (bate(blocos[i])) return i;
     for (let i = 0; i < blocos.length; i++) if (bate(blocos[i])) return i;
     return -1;
   };
-  const grupos = cmtGrupos();
+  // onde cada apontamento entra no documento: o campo da ficha, o título da seção, a disciplina ou o eixo
+  const idxDe = i => {
+    const campo = String(i.campo || ''); let m, k;
+    if (i.ref) {
+      if ((P.disciplinas || []).some(x => x.id === i.ref)) { k = achaDisc(i.sec, i.ref); if (k >= 0) return k; }
+      const e = (P.eixos || []).find(x => x.id === i.ref);
+      if (e && e.nome) { k = achaApos(e.nome, achaTexto('Quadro 1')); if (k >= 0) return k; }
+    }
+    if ((m = campo.match(/^bind:textos\.(\w+)/))) { const t = (G.TEXTOS.find(x => x[0] === m[1]) || [])[1]; k = t ? achaTitulo(t) : -1; if (k >= 0) return k; }
+    if ((m = campo.match(/^com:(\w+)/)) || (m = campo.match(/^bind:id\.comissoes\.(\w+)/))) { k = achaTexto(CMT_COM[m[1]] || 'Comissão de elaboração'); if (k >= 0) return k; }
+    if ((m = campo.match(/^bind:id\.(\w+)/))) { const r = CMT_FICHA[m[1]]; k = r ? achaTexto(r) : -1; if (k >= 0) return k; if ((k = achaTexto('FICHA DE IDENTIFICAÇÃO DO CURSO')) >= 0) return k; }
+    for (const t of (CMT_SEC[i.sec] || [])) { k = /^\d/.test(t) ? achaTitulo(t) : achaTexto(t); if (k >= 0) return k; }
+    return -1;
+  };
+  const grupos = cmtGrupos(idxDe);
   grupos.forEach((g, n) => {
     g.id = 'an-g' + n;
     g.secNome = nomes[g.sec] || g.sec || '';
     const d = g.ref && (P.disciplinas || []).find(x => x.id === g.ref);
-    g.onde = g.secNome + (d ? ' · ' + d.nome : '');
-    let i = g.ref ? achaDisc(g.sec, g.ref) : -1;
-    if (i < 0) i = achaTitulo(nomes[g.sec] || '');
-    // capa, folha de rosto e formatação não têm título próprio: ficam no início do documento
-    if (i < 0 && ['ident', 'capa', 'formatacao'].indexOf(g.sec) >= 0) i = 0;
-    const b = i >= 0 ? blocos[i] : null;
+    const e = !d && g.ref && (P.eixos || []).find(x => x.id === g.ref);
+    g.onde = g.secNome + (d ? ' · ' + d.nome : e ? ' · ' + (e.nome || 'eixo sem nome') : '');
+    const b = g.alvo >= 0 ? blocos[g.alvo] : null;
     g.achou = !!b;
     if (!b) return;
     b.el.classList.add('cmt-hl'); b.el.id = g.id;
@@ -3557,8 +3789,9 @@ async function cmtMontar() {
   // âncora de cada seção, para abrir o documento no ponto mesmo sem pendências
   CMT.secoes = {};
   Object.keys(nomes).forEach(k => {
-    const i = achaTitulo(nomes[k]);
-    if (i < 0) { if (['ident', 'capa', 'formatacao'].indexOf(k) >= 0 && blocos.length) CMT.secoes[k] = blocos[0].el.id || (blocos[0].el.id = 'an-sec-' + k); return; }
+    let i = -1;
+    for (const t of (CMT_SEC[k] || [])) { i = /^\d/.test(t) ? achaTitulo(t) : achaTexto(t); if (i >= 0) break; }
+    if (i < 0) return;
     const el = blocos[i].el;
     CMT.secoes[k] = el.id || (el.id = 'an-sec-' + k);
   });

@@ -283,6 +283,12 @@ html,body{height:auto!important;min-height:100%}
 table.t.qeixo td input,table.t.qeixo td select{width:100%;box-sizing:border-box}
 table.t.qeixo td input.num{text-align:center}
 table.t.qeixo .c{text-align:center}
+/* eixos: quadro largo com rolagem lateral e eixo recolhido */
+.rolax{overflow-x:auto}
+.card.eixofech{padding-top:10px;padding-bottom:10px;background:#fbfcfe}
+.card.eixofech .row{margin:0}
+.ebtn{min-width:28px;font-size:15px;line-height:1;padding:3px 7px}
+table.t.qeixo{min-width:1040px}
 
 .sobre p{margin:0 0 8px;text-align:justify}.sobre ol,.sobre ul{margin:4px 0 8px;padding-left:22px}.sobre li{margin:3px 0}
 </style>
@@ -427,8 +433,10 @@ table.t.qeixo .c{text-align:center}
   function novoEixo(o) { return Object.assign({ id: uid(), nome: '', objetivos: '', competencias: [], ementa: '', ementaOpt: '' }, o || {}); }
   function novaCompetencia(o) { return Object.assign({ id: uid(), cod: '', texto: '' }, o || {}); }
   function novaDisciplina(o) {
-    const d = Object.assign({ id: uid(), eixoId: '', nome: '', periodo: 1, haT: 0, haP: 0, optativa: false, area: '', caracteristica: '', competencias: [], prereqs: [], coreqs: [], ementa: '', bibBasica: '', bibComp: '' }, o || {});
+    const d = Object.assign({ id: uid(), eixoId: '', nome: '', periodo: 1, haT: 0, haP: 0, carater: '', optativa: false, area: '', caracteristica: '', competencias: [], prereqs: [], coreqs: [], ementa: '', bibBasica: '', bibComp: '' }, o || {});
     d.prereqs = d.prereqs || []; d.coreqs = d.coreqs || []; d.competencias = d.competencias || [];
+    // projetos antigos não têm o caráter: deduz das horas-aula já lançadas
+    if (!d.carater) d.carater = (+d.haT > 0 && +d.haP > 0) ? 'TP' : (+d.haP > 0 && !(+d.haT > 0)) ? 'P' : 'T';
     return d;
   }
   function hidratar(p) {
@@ -461,8 +469,10 @@ table.t.qeixo .c{text-align:center}
   const ha2h = (ha, min) => (+ha || 0) * (min || 50) / 60;
   const h2ha = (h, min) => (+h || 0) * 60 / (min || 50);
   const haDisc = d => (+d.haT || 0) + (+d.haP || 0);
-  const natureza = d => (+d.haT > 0 && +d.haP > 0) ? 'Teórico-prática' : +d.haP > 0 ? 'Prática' : 'Teórica';
-  const tp = d => (+d.haT > 0 && +d.haP > 0) ? 'T/P' : +d.haP > 0 ? 'P' : 'T';
+  const ROT_CARATER = { T: 'Teórica', P: 'Prática', TP: 'Teórico-prática' };
+  const carater = d => d.carater || ((+d.haT > 0 && +d.haP > 0) ? 'TP' : (+d.haP > 0 && !(+d.haT > 0)) ? 'P' : 'T');
+  const natureza = d => ROT_CARATER[carater(d)];
+  const tp = d => ({ T: 'T', P: 'P', TP: 'T/P' })[carater(d)];
   // números das disciplinas: "01/1" (IN 01/2023) ou "1.01/1" (período.ordem/eixo)
   function numeracao(p) {
     const ix = new Map(p.eixos.map((e, i) => [e.id, i + 1]));
@@ -568,6 +578,9 @@ table.t.qeixo .c{text-align:center}
       if (eng && !e.competencias.length) add('erro', 'eixos', `${n}: marque as competências e habilidades desenvolvidas no eixo.`, IN1 + ', Quadro 1', e.id, `eixo:${e.id}:competencias`);
       if (!p.disciplinas.some(d => d.eixoId === e.id)) add('aviso', 'eixos', `${n}: nenhuma disciplina vinculada.`, IN1 + ', Quadro 1', e.id, `eixo:${e.id}:nome`);
     });
+    // disciplinas que ficaram fora de qualquer eixo: aparecem também aqui, onde os eixos são montados
+    const soltas = p.disciplinas.filter(d => !d.eixoId || !p.eixos.some(e => e.id === d.eixoId));
+    if (soltas.length) add('erro', 'eixos', `${soltas.length} disciplina(s) sem eixo: ${soltas.slice(0, 6).map(d => d.nome || '(sem nome)').join(', ')}${soltas.length > 6 ? '…' : ''}. Escolha o eixo de cada uma no quadro “Disciplinas sem eixo”.`, IN1 + ', Quadro 1', null, 'sel:.card .rolax');
     // disciplinas
     if (!p.disciplinas.length) add('erro', 'disc', 'Cadastre as disciplinas do curso.', IN1 + ', Quadro 2', null, 'disciplinas');
     const nomes = new Map(p.disciplinas.map(d => [d.id, d]));
@@ -1227,7 +1240,7 @@ table.t.qeixo .c{text-align:center}
     return buildDocx(B.join(''), { hf, lastSect: sectPr('retrato', false, true), updateFields: true, title: `Projeto Pedagógico do Curso de ${nomeCurso}`, image: logo, partes: opcoes.partes, logoURL: ((I.logo && I.logo.dataURL) || (root.PPC_LOGO && root.PPC_LOGO.dataURL) || '') });
   }
 
-  const API = { SIGLAS_PADRAO, CAMPI, TEXTOS, LIMITE, DCN_BASICOS, AREAS_DCN, CARACT, NOMES_ATV, SECOES, uid, norm, lines, fmtN, fmtH, fmtP, aplicaCampus, novoProjeto, novoEixo, novaCompetencia, novaDisciplina, hidratar, dataISO, mesAno, calc, numeracao, haDisc, natureza, tp, ha2h, h2ha, validar, eqBusca, resumoSecoes, abntProblema, abntPartes, gerarPPC };
+  const API = { ROT_CARATER, carater, SIGLAS_PADRAO, CAMPI, TEXTOS, LIMITE, DCN_BASICOS, AREAS_DCN, CARACT, NOMES_ATV, SECOES, uid, norm, lines, fmtN, fmtH, fmtP, aplicaCampus, novoProjeto, novoEixo, novaCompetencia, novaDisciplina, hidratar, dataISO, mesAno, calc, numeracao, haDisc, natureza, tp, ha2h, h2ha, validar, eqBusca, resumoSecoes, abntProblema, abntPartes, gerarPPC };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.PPCG = API;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -2079,7 +2092,7 @@ const $$ = (s, r) => [...(r || document).querySelectorAll(s)];
 const h = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const G = window.PPCG;
 const KEY = 'ppc-grad-rascunho-v1', KEY_ANT = 'ppc-grad-rascunho-anterior';
-const VERSAO = '1.8', VERSAO_DATA = '26/11/2026', VERSAO_TAG = 'beta';
+const VERSAO = '1.9', VERSAO_DATA = '26/11/2026', VERSAO_TAG = 'beta';
 const AUTOR = { nome: 'Prof. Alexandre Rodrigues Farias', linkedin: 'https://www.linkedin.com/in/alexandre-rodrigues-farias' };
 let P = null, ISS = [], step = 'ident', selDisc = null, RASCUNHO = null;
 
@@ -2260,7 +2273,10 @@ function render() {
   ISS = G.validar(P);
   renderNav();
   const f = { ident: vIdent, textos: vTextos, comp: vComp, eixos: vEixos, disc: vDisc, matriz: vMatriz, ch: vCH, pessoal: vPessoal, validar: vValidar, gerar: vGerar, normas: vNormas, sobre: vSobre, tutorial: vTutorial }[step];
+  // a lista lateral de disciplinas guarda a posição da rolagem: redesenhar não devolve o usuário ao topo
+  const _dl = $('#dlist'), _top = _dl ? _dl.scrollTop : 0;
   $('#main').innerHTML = (RASCUNHO && !CO.pid ? `<div class="rasc"><span>Há um rascunho salvo neste navegador${RASCUNHO.id.curso ? ': <b>' + h(RASCUNHO.id.curso) + '</b>' : ''}.</span><button class="sm" data-rasc="abrir">Continuar rascunho</button><button class="sm ghost" data-rasc="descartar">Descartar</button></div>` : '') + f();
+  if (_top) { const n = $('#dlist'); if (n) n.scrollTop = _top; }
   revalidate();
   colabPosRender();
 }
@@ -2329,7 +2345,7 @@ function vIdent() {
     ${fld('Cidade', inp('id.local', I.local))}
     ${fld('Data', inp('id.data', I.data, { type: 'date' }))}
   </div>
-  <div class="flabel">Rodapé das páginas <span class="muted" style="font-weight:400">uma linha por linha do rodapé; em branco, o gerador monta a partir dos dados acima</span></div>
+  <div class="flabel">Rodapé das páginas <span class="muted" style="font-weight:400">uma linha por linha do rodapé; em branco, o gerador monta a partir dos dados acima</span><span class="sp"></span><button class="sm ghost" data-act="rodapePadrao">${I.rodape && I.rodape.trim() ? 'Restaurar o texto padrão' : 'Trazer o texto padrão para editar'}</button></div>
   ${inp('id.rodape', I.rodape, { type: 'textarea', ph: rodapePadrao().join('\n') })}
   <p class="g">Sai em fonte pequena no pé de cada página, com o número da folha, como nos PPCs da instituição.</p>
   <div class="flabel">Dirigentes (folha de rosto)</div><div class="grid">
@@ -2404,6 +2420,7 @@ const COMP_DCN = [
 function renumComp() { P.competencias.forEach((c, i) => { c.cod = 'C' + (i + 1); }); }
 const chipsComp = (sel, attr) => P.competencias.filter(c => c.texto.trim()).map(c => `<label class="chip ${sel.includes(c.id) ? 'on' : ''}" title="${h(c.texto)}"><input type="checkbox" ${attr} data-cid="${c.id}"${sel.includes(c.id) ? ' checked' : ''}>${h(c.cod)}</label>`).join('') || '<span class="muted">Cadastre as competências na etapa <a href="#" data-step="comp">Competências do egresso</a>.</span>';
 // eixos
+const EIXO_FECHADO = new Set();   // estado de tela, não vai para o arquivo do projeto
 function resumoEixosHTML(C) {
   return (P.eixos.map((e, i) => `<tr><td>${i + 1} – ${h(e.nome || '(sem nome)')}</td><td class="c">${G.fmtH(C.porEixo[i].h)}</td><td class="c">${C.porEixo[i].ha}</td><td class="c">${C.porEixo[i].haOpt || '–'}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">Nenhum eixo cadastrado.</td></tr>')
     + `<tr><td style="font-weight:700">Total das disciplinas obrigatórias</td><td class="c" style="font-weight:700">${G.fmtH(C.hObr)}</td><td class="c" style="font-weight:700">${C.haObr}</td><td></td></tr>`
@@ -2415,27 +2432,36 @@ function quadroEixo(e, optativa, num, C) {
     .sort((a, b) => (optativa ? 0 : (+a.periodo || 0) - (+b.periodo || 0)) || P.disciplinas.indexOf(a) - P.disciplinas.indexOf(b));
   const somaHa = lista.reduce((a, d) => a + G.haDisc(d), 0);
   // a disciplina se edita aqui mesmo: nome, período e horas-aula. O resto (ementa, bibliografia) fica na etapa Disciplinas.
+  const selEixo = d => `<select data-d="${d.id}" data-f="eixoId" title="Eixo da disciplina — mude aqui para passá-la a outro eixo"><option value=""${d.eixoId ? '' : ' selected'}>— sem eixo</option>${P.eixos.map((x, k) => `<option value="${x.id}"${d.eixoId === x.id ? ' selected' : ''}>${k + 1} – ${h(x.nome || 'sem nome')}</option>`).join('')}</select>`;
+  const selTipo = d => `<select data-d="${d.id}" data-f="optativa" title="Obrigatória ou optativa — ao mudar, a disciplina passa para o quadro correspondente"><option value="false"${d.optativa ? '' : ' selected'}>Obrigatória</option><option value="true"${d.optativa ? ' selected' : ''}>Optativa</option></select>`;
+  const selCarater = d => `<select data-d="${d.id}" data-f="carater" title="Teórica, prática ou as duas — define quais horas-aula são pedidas"><option value="T"${G.carater(d) === 'T' ? ' selected' : ''}>Teórica</option><option value="P"${G.carater(d) === 'P' ? ' selected' : ''}>Prática</option><option value="TP"${G.carater(d) === 'TP' ? ' selected' : ''}>Teór./prát.</option></select>`;
   const linhas = lista.map((d, i) => {
-    const eq = eqDe(d);
+    const eq = eqDe(d), car = G.carater(d);
+    const hora = (f, rot, mostra) => !mostra ? '<span class="muted">–</span>'
+      : eq ? `<span class="c">${+d[f] || 0}</span>`
+        : `<input type="number" min="0" step="15" class="num" data-d="${d.id}" data-f="${f}" value="${+d[f] || 0}" title="${rot}">`;
     return `<tr data-drow="${d.id}">
       <td class="c">${eq ? '🔒 ' : ''}${h(num.get(d.id) || '–')}</td>
       <td>${eq ? `<span title="Equalizada: nome e carga horária fixados pela resolução">${h(d.nome)}</span>` : `<input data-d="${d.id}" data-f="nome" value="${h(d.nome)}" placeholder="Nome da disciplina">`}</td>
+      <td>${selEixo(d)}</td>
+      <td>${selTipo(d)}</td>
       <td><select data-d="${d.id}" data-f="periodo" title="${optativa ? 'Período recomendado' : 'Período'}">${Array.from({ length: C.nP }, (_, k) => `<option value="${k + 1}"${+d.periodo === k + 1 ? ' selected' : ''}>${k + 1}º</option>`).join('')}</select></td>
-      <td>${eq ? `<span class="c">${+d.haT || 0}</span>` : `<input type="number" min="0" step="15" class="num" data-d="${d.id}" data-f="haT" value="${+d.haT || 0}" title="Horas-aula teóricas">`}</td>
-      <td>${eq ? `<span class="c">${+d.haP || 0}</span>` : `<input type="number" min="0" step="15" class="num" data-d="${d.id}" data-f="haP" value="${+d.haP || 0}" title="Horas-aula práticas">`}</td>
+      <td>${eq ? `<span class="c">${h(G.ROT_CARATER[car])}</span>` : selCarater(d)}</td>
+      <td>${hora('haT', 'Horas-aula teóricas', car !== 'P')}</td>
+      <td>${hora('haP', 'Horas-aula práticas', car !== 'T')}</td>
       <td class="c" data-dch="${d.id}">${G.fmtH(G.ha2h(G.haDisc(d), P.id.minutosHA))}</td>
       <td style="white-space:nowrap;text-align:right">
         <button class="sm ghost" data-act="discMove" data-id="${d.id}" data-dir="-1"${i ? '' : ' disabled'} title="Mover para cima">↑</button>
         <button class="sm ghost" data-act="discMove" data-id="${d.id}" data-dir="1"${i < lista.length - 1 ? '' : ' disabled'} title="Mover para baixo">↓</button>
         <button class="sm ghost" data-act="mvAbrir" data-id="${d.id}" title="Abrir na etapa Disciplinas: ementa, bibliografia, pré-requisitos">abrir</button>
-        <button class="sm ghost" data-act="discRm" data-id="${d.id}" title="Excluir do projeto">✕</button>
+        <button class="sm ghost" data-act="discTirar" data-id="${d.id}" title="Tirar deste eixo — a disciplina continua no projeto, na etapa Disciplinas">✕</button>
       </td></tr>`;
   }).join('');
-  return `<div data-quadro="${e.id}:${optativa ? 1 : 0}"><div class="flabel" style="margin-top:12px">${optativa ? 'Disciplinas optativas do eixo' : 'Disciplinas obrigatórias do eixo'} <span class="muted" style="font-weight:400">nome, período e horas-aula se editam aqui; ementa e bibliografia, em “abrir”</span></div>
-    <table class="t qeixo"><thead><tr><th style="width:84px">Nº/eixo</th><th>Disciplina</th><th style="width:80px">Período</th><th style="width:78px">h/a teór.</th><th style="width:78px">h/a prát.</th><th style="width:78px">C.H. (h)</th><th style="width:168px"></th></tr></thead>
-    <tbody>${linhas || `<tr><td colspan="7" class="muted">Nenhuma disciplina ${optativa ? 'optativa ' : ''}neste eixo.</td></tr>`}
-    ${lista.length ? `<tr><td></td><td style="font-weight:700">Total</td><td></td><td colspan="2" class="c" style="font-weight:700" data-dtotha="${e.id}:${optativa ? 1 : 0}">${somaHa} h/a</td><td class="c" style="font-weight:700" data-dtoth="${e.id}:${optativa ? 1 : 0}">${G.fmtH(G.ha2h(somaHa, P.id.minutosHA))}</td><td></td></tr>` : ''}</tbody></table>
-    <div class="row" style="gap:8px;margin-top:6px"><button class="sm" data-act="discAddEixo" data-id="${e.id}" data-opt="${optativa ? 1 : 0}">+ ${optativa ? 'Optativa' : 'Disciplina'} neste eixo</button>${optativa || !window.PPCG_EQUAL ? '' : `<button class="sm ghost" data-act="eqAbrir" data-p="1">+ Equalizada</button>`}</div></div>`;
+  return `<div data-quadro="${e.id}:${optativa ? 1 : 0}"><div class="flabel" style="margin-top:12px">${optativa ? 'Disciplinas optativas do eixo' : 'Disciplinas obrigatórias do eixo'} <span class="muted" style="font-weight:400">nome, eixo, tipo, período, caráter e horas-aula se editam aqui; ementa e bibliografia, em “abrir”. O ✕ tira do eixo e não exclui a disciplina.</span></div>
+    <div class="rolax"><table class="t qeixo"><thead><tr><th style="width:74px">Nº/eixo</th><th style="min-width:160px">Disciplina</th><th style="width:140px">Eixo</th><th style="width:106px">Tipo</th><th style="width:72px">Período</th><th style="width:106px">Caráter</th><th style="width:72px">h/a teór.</th><th style="width:72px">h/a prát.</th><th style="width:70px">C.H. (h)</th><th style="width:160px"></th></tr></thead>
+    <tbody>${linhas || `<tr><td colspan="10" class="muted">Nenhuma disciplina ${optativa ? 'optativa ' : ''}neste eixo.</td></tr>`}
+    ${lista.length ? `<tr><td></td><td style="font-weight:700">Total</td><td colspan="4"></td><td colspan="2" class="c" style="font-weight:700" data-dtotha="${e.id}:${optativa ? 1 : 0}">${somaHa} h/a</td><td class="c" style="font-weight:700" data-dtoth="${e.id}:${optativa ? 1 : 0}">${G.fmtH(G.ha2h(somaHa, P.id.minutosHA))}</td><td></td></tr>` : ''}</tbody></table></div>
+    <div class="row" style="gap:8px;margin-top:6px"><button class="sm" data-act="discAddEixo" data-id="${e.id}" data-opt="${optativa ? 1 : 0}">+ ${optativa ? 'Optativa' : 'Disciplina'} neste eixo</button>${!window.PPCG_EQUAL ? '' : `<button class="sm ghost" data-act="eqAbrir" data-p="1" data-eixo="${e.id}" data-opt="${optativa ? 1 : 0}">+ Equalizada neste eixo</button>`}</div></div>`;
 }
 function vEixos() {
   const C = G.calc(P), eng = P.id.tipoCurso === 'engenharia', num = G.numeracao(P);
@@ -2452,7 +2478,12 @@ function vEixos() {
     </div>
     <table class="t" style="margin-top:10px"><thead><tr><th>Eixo</th><th style="width:150px">C.H. obrigatória (h)</th><th style="width:150px">Horas-aula (h/a)</th><th style="width:130px">Optativas (h/a)</th></tr></thead><tbody id="chResumoEixos">${resumoEixosHTML(C)}</tbody></table>
     <p class="g">As demais atividades (eletivas, PFC, estágio supervisionado) ficam na etapa <b>Atividades e carga horária</b>.</p></div>`;
-  const cartao = (e, i) => `<div class="card"><div class="row"><h3 style="flex:1">Eixo ${i + 1}${e.nome ? ' – ' + h(e.nome) : ''}</h3><span class="muted" data-chEixo="${e.id}">${G.fmtH(C.porEixo[i].h)} h obrigatórias · ${C.porEixo[i].ha} h/a em disciplinas</span>${i ? `<button class="sm ghost" data-act="eixoUp" data-i="${i}" title="Subir">↑</button>` : ''}${i < P.eixos.length - 1 ? `<button class="sm ghost" data-act="eixoDown" data-i="${i}" title="Descer">↓</button>` : ''}<button class="sm ghost" data-act="eixoRm" data-id="${e.id}">Excluir</button></div>
+  const cartao = (e, i) => {
+    const fechado = EIXO_FECHADO.has(e.id);
+    const nd = P.disciplinas.filter(d => d.eixoId === e.id).length;
+    const cab = `<div class="row"><button class="sm ghost ebtn" data-act="eixoToggle" data-id="${e.id}" title="${fechado ? 'Abrir o eixo' : 'Recolher o eixo'}">${fechado ? '▸' : '▾'}</button><h3 style="flex:1;cursor:pointer" data-act="eixoToggle" data-id="${e.id}">Eixo ${i + 1}${e.nome ? ' – ' + h(e.nome) : ''}${fechado ? ` <span class="muted" style="font-weight:400">· ${nd} disciplina(s)</span>` : ''}</h3><span class="muted" data-chEixo="${e.id}">${G.fmtH(C.porEixo[i].h)} h obrigatórias · ${C.porEixo[i].ha} h/a em disciplinas</span>${i ? `<button class="sm ghost" data-act="eixoUp" data-i="${i}" title="Subir">↑</button>` : ''}${i < P.eixos.length - 1 ? `<button class="sm ghost" data-act="eixoDown" data-i="${i}" title="Descer">↓</button>` : ''}<button class="sm ghost" data-act="eixoRm" data-id="${e.id}">Excluir</button></div>`;
+    if (fechado) return `<div class="card eixofech">${cab}</div>`;
+    return `<div class="card">${cab}
       <label class="f"><span>Nome do eixo${RQ}</span><input data-e="${e.id}" data-f="nome" value="${h(e.nome)}"></label>
       <div class="flabel">Objetivos do eixo${RQ} <span class="muted" style="font-weight:400">um por linha</span></div><textarea data-e="${e.id}" data-f="objetivos">${h(e.objetivos)}</textarea>
       ${eng ? `<div class="flabel">Competências e habilidades desenvolvidas${RQ}</div><div class="chips" data-ebox="${e.id}:competencias">${chipsComp(e.competencias, `data-ecomp="${e.id}"`)}</div>` : ''}
@@ -2462,8 +2493,22 @@ function vEixos() {
       ${quadroEixo(e, true, num, C)}
       <div data-iss="ref:${e.id}"></div></div>
       <div class="row" style="gap:8px;margin:-4px 0 14px"><button class="sm ghost" data-act="eixoAdd" data-i="${i}">+ Eixo depois deste</button></div>`;
-  return `<h2>Eixos de conteúdos e atividades</h2><p class="lead">Quadro 1 da IN DIRGRAD nº 01/2023. Cada eixo representa uma área do conhecimento do curso (ex.: Eixo 1 – Matemática).</p>` +
-    topo + P.eixos.map(cartao).join('') +
+  };
+  // disciplinas que ficaram sem eixo: ficam à vista aqui, para serem recolocadas
+  const soltas = P.disciplinas.filter(d => !d.eixoId);
+  const semEixo = !soltas.length ? '' : `<div class="card" style="border-left:4px solid #e0a800">
+    <div class="row"><h3 style="flex:1">Disciplinas sem eixo</h3><span class="muted">${soltas.length} disciplina(s)</span></div>
+    <p class="g">Cada disciplina do PPC precisa pertencer a um eixo (Quadro 1 e Quadro 2 da IN DIRGRAD nº 01/2023). Escolha o eixo de cada uma abaixo.</p>
+    <div class="rolax"><table class="t qeixo"><thead><tr><th style="min-width:160px">Disciplina</th><th style="width:150px">Eixo</th><th style="width:106px">Tipo</th><th style="width:72px">Período</th><th style="width:70px">C.H. (h)</th><th style="width:120px"></th></tr></thead><tbody>
+    ${soltas.map(d => `<tr data-drow="${d.id}"><td>${h(d.nome || '(sem nome)')}</td>
+      <td><select data-d="${d.id}" data-f="eixoId"><option value="" selected>— escolha</option>${P.eixos.map((x, k) => `<option value="${x.id}">${k + 1} – ${h(x.nome || 'sem nome')}</option>`).join('')}</select></td>
+      <td class="muted">${d.optativa ? 'Optativa' : 'Obrigatória'}</td><td class="c muted">${+d.periodo || '?'}º</td>
+      <td class="c">${G.fmtH(G.ha2h(G.haDisc(d), P.id.minutosHA))}</td>
+      <td style="text-align:right;white-space:nowrap"><button class="sm ghost" data-act="mvAbrir" data-id="${d.id}">abrir</button><button class="sm ghost" data-act="discRm" data-id="${d.id}" title="Excluir do projeto">✕</button></td></tr>`).join('')}
+    </tbody></table></div></div>`;
+  const barra = P.eixos.length > 1 ? `<div class="row" style="gap:8px;margin:0 0 12px"><button class="sm ghost" data-act="eixoFecharTodos">Recolher todos</button><button class="sm ghost" data-act="eixoAbrirTodos">Expandir todos</button></div>` : '';
+  return `<h2>Eixos de conteúdos e atividades</h2><p class="lead">Quadro 1 da IN DIRGRAD nº 01/2023. Cada eixo representa uma área do conhecimento do curso (ex.: Eixo 1 – Matemática). Clique no título de um eixo para recolhê-lo ou abri-lo.</p>` +
+    topo + semEixo + barra + P.eixos.map(cartao).join('') +
     `<div class="row" style="gap:8px"><button class="pri" data-act="eixoAdd">+ Eixo no fim</button></div><div data-iss="eixos|geral"></div>`;
 }
 // disciplinas
@@ -2499,6 +2544,7 @@ function editorDiscHTML(d) {
       <label class="f"><span>Eixo${RQ}</span>${sel('eixoId', [['', 'Selecione…'], ...P.eixos.map((e, i) => [e.id, `${i + 1} – ${e.nome || '(sem nome)'}`])])}</label>
       <label class="f"><span>Tipo</span>${sel('optativa', [['false', 'Obrigatória'], ['true', 'Optativa']])}</label>
       <label class="f"><span>Período${d.optativa ? ' recomendado' : ''}</span>${sel('periodo', Array.from({ length: C.nP }, (_, i) => [i + 1, (i + 1) + 'º']))}</label>
+      <label class="f"><span>Caráter</span>${eq ? ro(G.ROT_CARATER[G.carater(d)]) : sel('carater', [['T', 'Teórica'], ['P', 'Prática'], ['TP', 'Teórico-prática']])}</label>
       <label class="f"><span>Horas-aula teóricas</span>${eq ? ro(String(+d.haT || 0)) : `<input type="number" min="0" step="15" data-d="${d.id}" data-f="haT" value="${+d.haT || 0}">`}</label>
       <label class="f"><span>Horas-aula práticas</span>${eq ? ro(String(+d.haP || 0)) : `<input type="number" min="0" step="15" data-d="${d.id}" data-f="haP" value="${+d.haP || 0}">`}</label>
       <label class="f"><span>Área de formação (DCN)${RQ}</span>${sel('area', [['', 'Selecione…'], ...G.AREAS_DCN])}</label>
@@ -2599,7 +2645,7 @@ function cartaoHTML(d, S, ro) {
   const [bg, bd] = corDisc(d), C = G.calc(P), cf = ro ? [] : conflitos(d), ha = G.haDisc(d), hh = G.ha2h(ha, C.min), eq = eqDe(d);
   const ref = ids => ids.map(id => MX.ref === 'cod' ? S.num.get(id) : S.seq.get(id)).filter(Boolean).join(', ');
   const det = MX.det ? `<div class="fxd">${[+d.haT ? 'T ' + d.haT : '', +d.haP ? 'P ' + d.haP : ''].filter(Boolean).join(' · ') || '0'} h/a${d.area ? ' · ' + h(d.area) : ''}${d.caracteristica && !eq ? ' · ' + h(d.caracteristica === 'Criada para o curso' ? 'nova' : d.caracteristica.toLowerCase()) : ''}</div>` : '';
-  return `<div class="fxi"><div class="fxc${cf.length ? ' conf' : ''}${eq ? ' eq' : ''}${!ro && MX.sel === d.id ? ' hsel2' : ''}"${ro ? '' : ` draggable="true" data-mc="${d.id}"`} style="background:${bg};border-color:${bd}" title="${h(d.nome + (eq ? '\n🔒 Equalizada (' + eq.res + '): ementa, carga horária e bibliografia fixas' : '') + (cf.length ? '\n⚠ ' + cf.join('\n⚠ ') : '') + (ro ? '' : '\nClique para ver os detalhes ou editar; arraste para mudar de período.'))}">
+  return `<div class="fxi"><div class="fxc${cf.length ? ' conf' : ''}${eq ? ' eq' : ''}${!ro && MX.sel === d.id ? ' hsel2' : ''}"${ro ? '' : ` draggable="true" data-mc="${d.id}"`} style="background:${bg};border-color:${bd}" title="${h(d.nome + (eq ? '\n🔒 Equalizada (' + eq.res + '): ementa, carga horária e bibliografia fixas' : '') + (cf.length ? '\n⚠ ' + cf.join('\n⚠ ') : '') + (ro ? '' : '\nClique para ver os detalhes ou editar; clique duas vezes para abrir na etapa Disciplinas; arraste para mudar de período.'))}">
     <div class="fx1"><b>${h(S.num.get(d.id) || '')}</b>${eq ? '<span class="fxeq" title="Equalizada">🔒 EQ</span>' : ''}<span class="fxch">${fmtCH(ha, hh)}</span></div>
     <div class="fxn">${h(d.nome || '(sem nome)')}</div>
     ${det}
@@ -2705,6 +2751,11 @@ document.addEventListener('click', ev => {
   if (ARRASTOU) return;
   const c = ev.target.closest && ev.target.closest('#mxwrap [data-mc], #mxwrap [data-mxatv]'); if (!c) return;
   MX.sel = c.dataset.mc || 'dist'; mxRender();
+});
+// duplo clique no cartão: abre a disciplina na etapa Disciplinas, com ementa, bibliografia e pré-requisitos
+document.addEventListener('dblclick', ev => {
+  const c = ev.target.closest && ev.target.closest('#mxwrap [data-mc]'); if (!c) return;
+  ev.preventDefault(); selDisc = c.dataset.mc; go('disc');
 });
 document.addEventListener('change', ev => {
   const el = ev.target;
@@ -2830,13 +2881,18 @@ function vSobre() {
 }
 
 // ---------- catálogo de disciplinas equalizadas ----------
-function eqModal(per) {
+function eqModal(per, eixoId, optativa) {
   const E = window.PPCG_EQUAL || [], C = G.calc(P);
-  const tem = new Set(P.disciplinas.map(d => G.norm(d.nome)));
+  // de cada disciplina já incluída, guarda em que eixo ela está — é o que o usuário precisa ver aqui
+  const tem = new Map(P.disciplinas.map(d => [G.norm(d.nome), d]));
+  const ondeEsta = d => { const i = P.eixos.findIndex(e => e.id === d.eixoId); return i < 0 ? 'sem eixo' : `Eixo ${i + 1}${P.eixos[i].nome ? ' – ' + P.eixos[i].nome : ''}`; };
   const areas = [...new Set(E.map(x => x.area))];
+  const eAlvo = P.eixos.find(e => e.id === eixoId);
   modal(`<h3>Incluir disciplinas equalizadas</h3><p class="muted" style="margin:0 0 8px">Ementa e carga horária das Resoluções CGRAD nº 05, 06, 07, 08, 09 e 14/2022; bibliografia da Deliberação CGRAD nº 32/22 (campi Nova Suíça e Nova Gameleira).</p>
+    ${eAlvo ? `<p class="muted" style="margin:0 0 8px">As selecionadas entram em <b>Eixo ${P.eixos.indexOf(eAlvo) + 1}${eAlvo.nome ? ' – ' + h(eAlvo.nome) : ''}</b>${optativa ? ', como optativas' : ''}.</p>` : ''}
+    <input type="hidden" id="eqEixo" value="${h(eixoId || '')}"><input type="hidden" id="eqOpt" value="${optativa ? '1' : ''}">
     <input id="eqBusca" placeholder="Buscar disciplina…" style="margin-bottom:8px">
-    <div id="eqLista" style="max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:4px 10px">${areas.map(a => `<div class="flabel" style="margin:10px 0 4px">${h(a)}</div>` + E.map((x, i) => x.area !== a ? '' : `<label class="eqi" data-busca="${h(G.norm(x.nome))}" style="display:flex;gap:8px;padding:4px 0;font-size:13px;align-items:flex-start${tem.has(G.norm(x.nome)) ? ';opacity:.5' : ''}"><input type="checkbox" data-eq="${i}" style="width:auto;margin-top:3px"${tem.has(G.norm(x.nome)) ? ' disabled' : ''}><span><b>${h(x.nome)}</b> · ${x.ha} h/a${x.periodo ? ' · ' + h(x.periodo) : ''}${tem.has(G.norm(x.nome)) ? ' · <i>já incluída</i>' : ''}<br><span class="muted" style="font-size:12px">${h(x.res)}${x.pre ? ' · Pré: ' + h(x.pre) : ''}${x.co ? ' · Co: ' + h(x.co) : ''}</span></span></label>`).join('')).join('')}</div>
+    <div id="eqLista" style="max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:4px 10px">${areas.map(a => `<div class="flabel" style="margin:10px 0 4px">${h(a)}</div>` + E.map((x, i) => x.area !== a ? '' : `<label class="eqi" data-busca="${h(G.norm(x.nome))}" style="display:flex;gap:8px;padding:4px 0;font-size:13px;align-items:flex-start${tem.has(G.norm(x.nome)) ? ';opacity:.5' : ''}"><input type="checkbox" data-eq="${i}" style="width:auto;margin-top:3px"${tem.has(G.norm(x.nome)) ? ' disabled' : ''}><span><b>${h(x.nome)}</b> · ${x.ha} h/a${x.periodo ? ' · ' + h(x.periodo) : ''}${tem.has(G.norm(x.nome)) ? ' · <i>já incluída em ' + h(ondeEsta(tem.get(G.norm(x.nome)))) + '</i>' : ''}<br><span class="muted" style="font-size:12px">${h(x.res)}${x.pre ? ' · Pré: ' + h(x.pre) : ''}${x.co ? ' · Co: ' + h(x.co) : ''}</span></span></label>`).join('')).join('')}</div>
     <div class="row" style="gap:10px;margin-top:10px;flex-wrap:wrap;align-items:center"><label class="f" style="flex-direction:row;align-items:center;gap:6px">Período <select id="eqPer">${Array.from({ length: C.nP }, (_, i) => `<option value="${i + 1}"${i + 1 === +per ? ' selected' : ''}>${i + 1}º</option>`).join('')}</select></label><label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" id="eqSug" checked style="width:auto">usar o período estimado pela resolução, quando houver</label></div>
     <div class="row" style="justify-content:flex-end;gap:8px;margin-top:12px"><button class="ghost" data-mact="cancelar">Cancelar</button><button class="pri" data-act="eqAdd">Incluir selecionadas</button></div>`);
   $('#modal .mbox').style.maxWidth = '760px';
@@ -2889,7 +2945,9 @@ document.addEventListener('input', ev => {
     const f = el.dataset.f;
     d[f] = f === 'optativa' ? el.value === 'true' : ['haT', 'haP', 'periodo'].includes(f) ? (+el.value || 0) : el.value;
     if (f === 'periodo' || f === 'optativa') { d.prereqs = d.prereqs.filter(x => { const o = P.disciplinas.find(y => y.id === x); return o && +o.periodo < +d.periodo; }); }
-    touch(['eixoId', 'optativa', 'periodo'].includes(f));
+    // teórica não tem horas de prática, e vice-versa: ao trocar o caráter, a hora que não se aplica é zerada
+    if (f === 'carater') { if (d.carater === 'T') d.haP = 0; if (d.carater === 'P') d.haT = 0; }
+    touch(['eixoId', 'optativa', 'periodo', 'carater'].includes(f));
   } else if (el.dataset.e) {
     const e = P.eixos.find(x => x.id === el.dataset.e); if (e) { e[el.dataset.f] = el.value; touch(); }
   } else if (el.dataset.c) {
@@ -2955,6 +3013,12 @@ document.addEventListener('click', async ev => {
     case 'eixoRm': { const usados = P.disciplinas.filter(d => d.eixoId === id).length; if (usados && !confirmar('eixo' + id, `Há ${usados} disciplina(s) neste eixo; elas ficarão sem eixo. Clique de novo para excluir.`)) break; P.eixos = P.eixos.filter(e => e.id !== id); P.disciplinas.forEach(d => { if (d.eixoId === id) d.eixoId = ''; }); touch(true); break; }
     case 'eixoUp': { const i = +t.dataset.i, e = P.eixos; [e[i - 1], e[i]] = [e[i], e[i - 1]]; touch(true); break; }
     case 'eixoDown': { const i = +t.dataset.i, e = P.eixos; if (i + 1 < e.length) { [e[i + 1], e[i]] = [e[i], e[i + 1]]; touch(true); } break; }
+    case 'rodapePadrao': { P.id.rodape = rodapePadrao().join('\n'); touch(true); toast('Texto padrão trazido para o campo: edite o que quiser.'); break; }
+    case 'eixoToggle': { if (EIXO_FECHADO.has(id)) EIXO_FECHADO.delete(id); else EIXO_FECHADO.add(id); render(); break; }
+    case 'eixoFecharTodos': { P.eixos.forEach(e => EIXO_FECHADO.add(e.id)); render(); break; }
+    case 'eixoAbrirTodos': { EIXO_FECHADO.clear(); render(); break; }
+    // tira do eixo sem excluir: a disciplina continua no projeto e aparece em “Disciplinas sem eixo”
+    case 'discTirar': { const d = P.disciplinas.find(x => x.id === id); if (!d) break; d.eixoId = ''; touch(true); toast(`“${d.nome || 'Disciplina'}” saiu do eixo e continua no projeto, em Disciplinas.`); break; }
     // move a disciplina entre as suas vizinhas do mesmo eixo: muda a ordem e, com ela, o número da disciplina
     case 'discMove': {
       const d = P.disciplinas.find(x => x.id === id); if (!d) break;
@@ -2981,11 +3045,13 @@ document.addEventListener('click', async ev => {
     }
     case 'discAdd': { const op = t.dataset.p === 'opt'; const d = G.novaDisciplina({ periodo: op ? G.calc(P).nP : +t.dataset.p, optativa: op, eixoId: P.eixos.length === 1 ? P.eixos[0].id : '' }); P.disciplinas.push(d); selDisc = d.id; touch(true); setTimeout(() => { const n = $(`[data-d="${d.id}"][data-f="nome"]`); if (n) n.focus(); }, 30); break; }
     case 'discRm': { const d = P.disciplinas.find(x => x.id === id); if (!confirmar('d' + id, `Excluir “${d.nome || 'disciplina'}”? Clique de novo para confirmar.`)) break; P.disciplinas = P.disciplinas.filter(x => x.id !== id); P.disciplinas.forEach(x => { x.prereqs = x.prereqs.filter(y => y !== id); x.coreqs = x.coreqs.filter(y => y !== id); }); selDisc = null; touch(true); break; }
-    case 'eqAbrir': eqModal(t.dataset.p); break;
+    case 'eqAbrir': eqModal(t.dataset.p, t.dataset.eixo || '', t.dataset.opt === '1'); break;
     case 'eqAdd': {
       const per = +$('#eqPer').value, sug = $('#eqSug').checked, E = window.PPCG_EQUAL;
       const sel = $$('[data-eq]:checked').map(x => E[+x.dataset.eq]); if (!sel.length) { toast('Selecione ao menos uma disciplina.'); break; }
-      const novas = sel.map(x => G.novaDisciplina({ nome: x.nome, periodo: sug && x.per ? x.per : per, haT: x.pratica ? 0 : x.ha, haP: x.pratica ? x.ha : 0, caracteristica: 'Equalizada', area: 'Básica', eixoId: eixoPara(x.area), ementa: x.ementa, bibBasica: x.bibBasica.join('\n'), bibComp: x.bibComp.join('\n'), _eqPre: x.pre, _eqCo: x.co }));
+      // quando o pedido veio de dentro de um eixo, é nele que as disciplinas entram
+      const eixoAlvo = ($('#eqEixo') || {}).value || '', ehOpt = !!(($('#eqOpt') || {}).value);
+      const novas = sel.map(x => G.novaDisciplina({ nome: x.nome, periodo: sug && x.per ? x.per : per, haT: x.pratica ? 0 : x.ha, haP: x.pratica ? x.ha : 0, carater: x.pratica ? 'P' : 'T', optativa: ehOpt, caracteristica: 'Equalizada', area: 'Básica', eixoId: eixoAlvo || eixoPara(x.area), ementa: x.ementa, bibBasica: x.bibBasica.join('\n'), bibComp: x.bibComp.join('\n'), _eqPre: x.pre, _eqCo: x.co }));
       P.disciplinas.push(...novas); ligarEq(); selDisc = novas[0].id; modal(''); touch(true);
       toast(`${novas.length} disciplina(s) equalizada(s) incluída(s). Confira o eixo e a área de formação de cada uma.`); break;
     }

@@ -3385,7 +3385,18 @@ async function colabAbrir() {
   itens.sort((a, b) => ((metas[b[0]] || {}).atualizado || b[1].criado || 0) - ((metas[a[0]] || {}).atualizado || a[1].criado || 0));
   modal(`<div class="colab"><h3>Trabalhar em equipe</h3><p class="muted">Você entrou como <b>${h(CO.user.nome)}</b> (${h(CO.user.email)}).</p>
     <div class="flabel">${(ADAPT.termo || 'PPC')==='parecer'?'Pareceres compartilhados com você':'PPCs compartilhados com você'}</div>
-    ${itens.length ? `<div class="ndocs">${itens.map(([pid, x]) => `<div class="ndoc"><div class="ni">PPC</div><div style="flex:1"><b>${h(x.curso || 'PPC sem nome')}</b><div class="muted" style="font-size:12.5px">${(metas[pid] || {}).criado || (metas[pid] || {}).atualizado ? `${x.papel === 'dono' ? 'criado por você' : 'você participa'} · última alteração ${h(fmtQuando((metas[pid] || {}).atualizado || (metas[pid] || {}).criado))}${(metas[pid] || {}).por ? ' por ' + h((metas[pid] || {}).por) : ''}` : 'já não está na nuvem'}</div></div><span class="row" style="gap:6px">${(metas[pid] || {}).criado || (metas[pid] || {}).atualizado ? `<button class="sm pri" data-colab="abrir" data-pid="${h(pid)}">Abrir</button>${x.papel === 'dono' ? `<button class="sm ghost" data-colab="excluir" data-pid="${h(pid)}" data-k="x${h(pid)}" title="Apaga este ${ADAPT.termo || 'PPC'} da nuvem, para todos os membros">Excluir</button>` : ''}` : `<button class="sm ghost" data-colab="tirar" data-pid="${h(pid)}">Tirar da lista</button>`}</span></div>`).join('')}</div>` : '<p class="muted">Nenhum ainda.</p>'}
+    ${itens.length ? `<div class="ndocs">${itens.map(([pid, x]) => {
+      const m = metas[pid] || {}, naNuvem = !!(m.criado || m.atualizado);
+      const meuEmail = String((CO.user && CO.user.email) || '').toLowerCase();
+      const dono = (m.dono && CO.user && m.dono === CO.user.uid) || (m.donoEmail && String(m.donoEmail).toLowerCase() === meuEmail) || x.papel === 'dono';
+      const quando = naNuvem ? `${dono ? 'criado por você' : 'você participa'} · última alteração ${h(fmtQuando(m.atualizado || m.criado))}${m.por ? ' por ' + h(m.por) : ''}` : 'já não está na nuvem';
+      const botoes = naNuvem
+        ? `<button class="sm pri" data-colab="abrir" data-pid="${h(pid)}">Abrir</button>`
+          + (dono ? `<button class="sm ghost" data-colab="excluir" data-pid="${h(pid)}" data-k="x${h(pid)}" title="Apaga este ${ADAPT.termo || 'PPC'} da nuvem, para todos os membros">Excluir</button>`
+                  : `<button class="sm ghost" data-colab="tirar" data-pid="${h(pid)}" title="Sai da equipe deste ${ADAPT.termo || 'PPC'} e tira-o da sua lista">Tirar da lista</button>`)
+        : `<button class="sm ghost" data-colab="tirar" data-pid="${h(pid)}">Tirar da lista</button>`;
+      return `<div class="ndoc"><div class="ni">PPC</div><div style="flex:1"><b>${h(x.curso || 'PPC sem nome')}</b><div class="muted" style="font-size:12.5px">${quando}</div></div><span class="row" style="gap:6px">${botoes}</span></div>`;
+    }).join('')}</div>` : '<p class="muted">Nenhum ainda.</p>'}
     <div class="flabel">Compartilhar o ${ADAPT.termo || 'PPC'} que está aberto agora</div>
     <p class="muted" style="font-size:12.5px;margin-top:0">Cria um ${ADAPT.termo || 'PPC'} compartilhado a partir do que está na tela (${h(ADAPT.curso(P) || 'projeto sem nome')}). Depois, envie o link para os colegas.</p>
     <div class="row" style="justify-content:space-between;gap:8px"><button class="ghost" data-colab="logout">Trocar de conta</button><span><button class="ghost" data-mact="cancelar">Fechar</button> <button class="pri" data-colab="criar">Compartilhar este PPC</button></span></div></div>`);

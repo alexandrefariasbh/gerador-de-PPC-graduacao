@@ -312,6 +312,18 @@ table.t.hgrade td{border:1px solid #e4e9f0;vertical-align:top;padding:3px}
 .hfalta{font-size:11px;color:var(--mut);margin-right:10px}
 .ndoc.atual{background:#eef7ff;border-color:#c7ddf5}
 .ndoc .tag{font-size:11px;background:#e3ebf5;color:var(--acc);border-radius:999px;padding:2px 8px;white-space:nowrap}
+/* ---------- editor de texto das seções ---------- */
+.edbox{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+.edbar{display:flex;flex-wrap:wrap;gap:3px;align-items:center;padding:5px 6px;background:#f7f9fc;border-bottom:1px solid var(--line)}
+.edb{font:600 12.5px/1 inherit;background:#fff;border:1px solid var(--line);border-radius:6px;padding:5px 8px;cursor:pointer;color:#334155}
+.edb:hover{background:#eef3f9;border-color:var(--acc2)}
+.edsep{width:1px;height:18px;background:var(--line);margin:0 3px}
+.edit{min-height:120px;max-height:460px;overflow:auto;padding:10px 12px;font-size:14px;line-height:1.55;text-align:justify;hyphens:auto}
+.edit:focus{outline:2px solid var(--acc2);outline-offset:-2px}
+.edit p{margin:0 0 8px}
+.edit ul,.edit ol{margin:0 0 8px;padding-left:24px}
+.edit img{max-width:100%;height:auto;border:1px solid var(--line);border-radius:4px}
+.edit .legfig{font-size:12px;color:var(--mut)}
 
 .sobre p{margin:0 0 8px;text-align:justify}.sobre ol,.sobre ul{margin:4px 0 8px;padding-left:22px}.sobre li{margin:3px 0}
 </style>
@@ -328,6 +340,7 @@ table.t.hgrade td{border:1px solid #e4e9f0;vertical-align:top;padding:3px}
     <span id="hdrBtns"></span>
   </div>
   <input type="file" id="fAbrir" accept=".json,application/json" hidden>
+  <input type="file" id="fFigura" accept="image/png,image/jpeg" hidden>
   <input type="file" id="fImportar" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
 </header>
 <div class="layout">
@@ -350,6 +363,8 @@ table.t.hgrade td{border:1px solid #e4e9f0;vertical-align:top;padding:3px}
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
   const norm = s => String(s || '').replace(/[–—]/g, '-').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  // texto puro de uma seção: o editor guarda HTML, e as marcas não contam como conteúdo
+  const soTexto = t => String(t == null ? '' : t).replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|li|h[1-6])>/gi, '\n').replace(/<img\b[^>]*>/gi, ' [figura] ').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/[ \t]+/g, ' ');
   const lines = s => String(s || '').split(/\r?\n/).map(x => x.trim()).filter(Boolean);
   const fmtN = n => Math.round(n).toLocaleString('pt-BR');
   // horas com uma casa decimal quando houver (12,5)
@@ -437,7 +452,7 @@ table.t.hgrade td{border:1px solid #e4e9f0;vertical-align:top;padding:3px}
         vagasAut: '', vagasProc: '', periodicidade: '', formasIngresso: 'Processo seletivo para o 1º período (SiSU), reingresso, reopção, transferência e obtenção de novo título',
         integPrev: '', integMax: '', tipo: 'implantacao', versao: '', local: '', data: '',
         atoCriacao: '', atoFunc: '', codEmec: '', atoReconh: '', atoRenov: '', cpc: '', enade: '',
-        minutosHA: 50, numeracao: 'in', rodape: '', semanasPeriodo: 20,
+        minutosHA: 50, numeracao: 'in', rodape: '', semanasPeriodo: 20, hifenizar: true,
         dirigentes: { dg: '', vdg: '', dirgrad: '', adj: '', campus: '' },
         comissoes: { elab: membrosVazios(), reest: membrosVazios(), nde: membrosVazios(), colegiado: membrosVazios() },
         aprovColegiado: '',
@@ -576,7 +591,7 @@ table.t.hgrade td{border:1px solid #e4e9f0;vertical-align:top;padding:3px}
     // textos
     const grupos = {};
     TEXTOS.forEach(([k, tit, g, obr]) => {
-      const v = String(T[k] || '').trim();
+      const v = soTexto(T[k]).trim();
       if (k === 'polDoc' && !eng) return;
       if (obr && !v) add('erro', 'textos', `Seção vazia: ${tit}.`, IN1 + ', Anexo II', null, 'bind:textos.' + k);
       if (g) grupos[g] = (grupos[g] || { n: 0, tit, k }), grupos[g].n += v.length;
@@ -720,6 +735,7 @@ table.t.hgrade td{border:1px solid #e4e9f0;vertical-align:top;padding:3px}
     if (o.font) rp += `<w:rFonts w:ascii="${o.font}" w:hAnsi="${o.font}" w:cs="${o.font}"/>`;
     if (o.bold) rp += '<w:b/>';
     if (o.italic) rp += '<w:i/>';
+    if (o.underline) rp += '<w:u w:val="single"/>';
     if (o.caps) rp += '<w:caps/>';
     if (o.color) rp += `<w:color w:val="${o.color}"/>`;
     if (o.spc) rp += `<w:spacing w:val="${o.spc}"/>`;
@@ -745,11 +761,121 @@ table.t.hgrade td{border:1px solid #e4e9f0;vertical-align:top;padding:3px}
     return `<w:p>${pp ? '<w:pPr>' + pp + '</w:pPr>' : ''}${body}</w:p>`;
   }
   const pageBreak = () => '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+  // ---------- figuras inseridas nos textos ----------
+  let FIGS = [];
+  const figReset = () => { FIGS = []; };
+  function dimImagem(b, ext) {
+    try {
+      if (ext === 'png') { const dv = new DataView(b.buffer, b.byteOffset, b.byteLength); return { w: dv.getUint32(16), h: dv.getUint32(20) }; }
+      // jpeg: procura o marcador SOF
+      for (let i = 2; i < b.length - 9;) {
+        if (b[i] !== 0xFF) { i++; continue; }
+        const m = b[i + 1];
+        if (m >= 0xC0 && m <= 0xCF && m !== 0xC4 && m !== 0xC8 && m !== 0xCC) return { h: (b[i + 5] << 8) | b[i + 6], w: (b[i + 7] << 8) | b[i + 8] };
+        i += 2 + ((b[i + 2] << 8) | b[i + 3]);
+      }
+    } catch (e) { }
+    return { w: 0, h: 0 };
+  }
+  function figAdd(dataURL) {
+    const m = String(dataURL || '').match(/^data:image\/(png|jpe?g);base64,(.*)$/);
+    if (!m) return null;
+    const ext = m[1] === 'png' ? 'png' : 'jpg';
+    let bytes; try { bytes = Uint8Array.from(atob(m[2]), c => c.charCodeAt(0)); } catch (e) { return null; }
+    const d = dimImagem(bytes, ext);
+    const n = FIGS.length + 1, f = { rid: 'rIdFig' + n, ext, bytes, nome: 'fig' + n + '.' + ext, w: d.w || 800, h: d.h || 600 };
+    FIGS.push(f); return f;
+  }
+  const EMU = 9525;                       // 1 px = 9525 EMU
+  const LARG_MAX = Math.round(15.5 * 360000);  // 15,5 cm em EMU, a largura útil da página
+  // ---------- texto das seções: aceita texto simples e o texto formatado do editor ----------
+  const ehHtml = t => /<(p|div|br|b|strong|i|em|u|ul|ol|li|img|h[1-6]|span)\b/i.test(String(t || ''));
   const textoParas = (txt, o) => {
-    const ls = String(txt || '').split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+    const t = String(txt || '');
+    if (ehHtml(t)) { const r = htmlParas(t, o); return r.length ? r : [para('[Seção não preenchida]', { italic: true })]; }
+    const ls = t.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
     if (!ls.length) return [para('[Seção não preenchida]', { italic: true })];
     return ls.map(l => /^[-–•·*]\s+/.test(l) ? para('–\t' + l.replace(/^[-–•·*]\s+/, ''), Object.assign({ ind: 567, hanging: 283 }, o)) : para(l, o));
   };
+  // HTML do editor → parágrafos do Word, preservando negrito, itálico, sublinhado,
+  // alinhamento, listas e figuras. Nada do texto é reescrito: só a formatação é traduzida.
+  function htmlParas(html, o) {
+    if (typeof DOMParser === 'undefined') return [para(String(html).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(), o)];
+    const doc = new DOMParser().parseFromString('<div id="r">' + html + '</div>', 'text/html');
+    const raiz = doc.getElementById('r');
+    const out = [];
+    const alinha = el => {
+      const ta = (el.style && el.style.textAlign) || (el.getAttribute && el.getAttribute('align')) || '';
+      return { center: 'center', right: 'right', justify: 'both', left: 'left' }[String(ta).toLowerCase()] || null;
+    };
+    const runs = (el, fmt) => {
+      let xml = '';
+      el.childNodes.forEach(n => {
+        if (n.nodeType === 3) { const t = n.nodeValue; if (t) xml += run(t, fmt); return; }
+        if (n.nodeType !== 1) return;
+        const tag = n.tagName.toLowerCase();
+        if (tag === 'br') { xml += '<w:r><w:br/></w:r>'; return; }
+        if (tag === 'img') {
+          const f = figAdd(n.getAttribute('src'));
+          if (!f) return;
+          let w = f.w * EMU, hh = f.h * EMU;
+          if (w > LARG_MAX) { hh = Math.round(hh * LARG_MAX / w); w = LARG_MAX; }
+          xml += imagemXml(w, hh, f.rid);
+          return;
+        }
+        const f2 = Object.assign({}, fmt);
+        if (tag === 'b' || tag === 'strong') f2.bold = true;
+        if (tag === 'i' || tag === 'em') f2.italic = true;
+        if (tag === 'u') f2.underline = true;
+        if (n.style && n.style.fontWeight && (n.style.fontWeight === 'bold' || +n.style.fontWeight >= 600)) f2.bold = true;
+        if (n.style && n.style.fontStyle === 'italic') f2.italic = true;
+        if (n.style && /underline/.test(n.style.textDecoration || '')) f2.underline = true;
+        xml += runs(n, f2);
+      });
+      return xml;
+    };
+    const bloco = (el, extra) => {
+      const temImg = el.querySelector && el.querySelector('img');
+      const corpo = runs(el, {});
+      if (!corpo.trim() && !temImg) return;
+      const op = Object.assign({}, o, extra || {});
+      const al = alinha(el); if (al) op.align = al;
+      if (temImg && !al) op.align = 'center';
+      out.push(para(corpo, op));
+      const leg = el.getAttribute && el.getAttribute('data-legenda');
+      if (leg) out.push(para(run(leg, { size: 9.5 }), { align: 'center', spacing: [0, 160] }));
+    };
+    const anda = pai => {
+      pai.childNodes.forEach(n => {
+        if (n.nodeType === 3) { const t = n.nodeValue.trim(); if (t) out.push(para(t, o)); return; }
+        if (n.nodeType !== 1) return;
+        const tag = n.tagName.toLowerCase();
+        if (tag === 'ul' || tag === 'ol') {
+          let i = 0;
+          n.childNodes.forEach(li => {
+            if (li.nodeType !== 1 || li.tagName.toLowerCase() !== 'li') return;
+            i++;
+            const marca = tag === 'ol' ? i + '.' : '–';
+            const corpo = run(marca + '\t') + runs(li, {});
+            out.push(para(corpo, Object.assign({}, o, { ind: 567, hanging: 283 })));
+          });
+          return;
+        }
+        if (/^(p|div|h[1-6]|figure|blockquote|section)$/.test(tag)) {
+          // divisão que só embrulha outros blocos: desce mais um nível
+          if ([...n.children].some(c => /^(p|div|ul|ol|figure|table)$/i.test(c.tagName)) && !n.querySelector('img')) return anda(n);
+          return bloco(n, tag === 'blockquote' ? { ind: 567 } : null);
+        }
+        if (tag === 'img' || tag === 'b' || tag === 'strong' || tag === 'i' || tag === 'em' || tag === 'u' || tag === 'span' || tag === 'a' || tag === 'br') {
+          // conteúdo solto na raiz: junta num parágrafo só
+          const d = doc.createElement('p'); d.appendChild(n.cloneNode(true)); return bloco(d);
+        }
+        anda(n);
+      });
+    };
+    anda(raiz);
+    return out;
+  }
   function cell(c, w, o) {
     c = typeof c === 'object' && c !== null && !Array.isArray(c) ? c : { t: c };
     o = o || {};
@@ -873,6 +999,12 @@ table.t.hgrade td{border:1px solid #e4e9f0;vertical-align:top;padding:3px}
       files.push({ name: 'word/media/logo.' + o.image.ext, data: o.image.bytes });
       ct.push(`<Default Extension="${o.image.ext}" ContentType="image/${o.image.ext === 'jpg' ? 'jpeg' : o.image.ext}"/>`);
     }
+    // figuras inseridas pelo usuário nos textos das seções
+    (FIGS || []).forEach(f => {
+      rels.push([f.rid, 'image', 'media/' + f.nome]);
+      files.push({ name: 'word/media/' + f.nome, data: f.bytes });
+      if (!ct.some(x => x.indexOf(`Extension="${f.ext}"`) >= 0)) ct.push(`<Default Extension="${f.ext}" ContentType="image/${f.ext === 'jpg' ? 'jpeg' : f.ext}"/>`);
+    });
     const hf = !!o.hf;
     if (hf) {
       const parts = [['header1', 'hdr', o.hf.header(9070)], ['footer1', 'ftr', o.hf.footer(9070)], ['header2', 'hdr', o.hf.header(14002)], ['footer2', 'ftr', o.hf.footer(14002)], ['header0', 'hdr', para('', { style: 'Cabealho' })], ['footer0', 'ftr', para('', { style: 'Rodap' })]];
@@ -893,7 +1025,7 @@ table.t.hgrade td{border:1px solid #e4e9f0;vertical-align:top;padding:3px}
       { name: 'word/_rels/document.xml.rels', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rels.map(([id, t, tg]) => `<Relationship Id="${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/${t}" Target="${tg}"/>`).join('')}</Relationships>` },
       { name: 'word/document.xml', data: doc },
       { name: 'word/styles.xml', data: TEMA ? STYLES_MOD : STYLES },
-      { name: 'word/settings.xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:settings ${W}><w:defaultTabStop w:val="709"/><w:characterSpacingControl w:val="doNotCompress"/>${o.updateFields ? '<w:updateFields w:val="true"/>' : ''}<w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>` }
+      { name: 'word/settings.xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:settings ${W}><w:defaultTabStop w:val="709"/><w:characterSpacingControl w:val="doNotCompress"/>${o.hifenizar === false ? '' : '<w:autoHyphenation w:val="true"/><w:hyphenationZone w:val="357"/><w:doNotHyphenateCaps w:val="true"/>'}${o.updateFields ? '<w:updateFields w:val="true"/>' : ''}<w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>` }
     );
     if (o.partes) { const o2 = {}; files.forEach(f => { if (/\.xml$/.test(f.name)) o2[f.name] = f.data; }); o2.logo = o.logoURL || ''; return o2; }
     return zip(files);
@@ -1127,6 +1259,7 @@ ${abas.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" Cont
 
   // ===================== PPC (.docx) no modelo da IN DIRGRAD nº 01/2023 =====================
   function gerarPPC(p, opcoes) {
+    figReset();   // as figuras dos textos são recolhidas a cada geração
     opcoes = opcoes || {};
     TEMA = opcoes.tema === 'moderno' ? { shade: { D9D9D9: 'DCE6F1', F2F2F2: 'EEF3F8', BFBFBF: 'C9D6E5' }, borda: 'B4C2D3' } : null;
     try { return gerarPPCcorpo(p, opcoes); } finally { TEMA = null; }
@@ -1491,10 +1624,10 @@ ${abas.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" Cont
       footer: util => para(pagNum(10, '', false), { style: 'Rodap', align: 'right', spacing: [0, 0], borderBottom: true })
         + rodCentro(7.5, '')
     };
-    return buildDocx(B.join(''), { hf, lastSect: sectPr('retrato', false, true), updateFields: true, title: `Projeto Pedagógico do Curso de ${nomeCurso}`, image: logo, partes: opcoes.partes, logoURL: ((I.logo && I.logo.dataURL) || (root.PPC_LOGO && root.PPC_LOGO.dataURL) || '') });
+    return buildDocx(B.join(''), { hifenizar: I.hifenizar !== false, hf, lastSect: sectPr('retrato', false, true), updateFields: true, title: `Projeto Pedagógico do Curso de ${nomeCurso}`, image: logo, partes: opcoes.partes, logoURL: ((I.logo && I.logo.dataURL) || (root.PPC_LOGO && root.PPC_LOGO.dataURL) || '') });
   }
 
-  const API = { ROT_CARATER, carater, gerarXlsx, SIGLAS_PADRAO, CAMPI, TEXTOS, LIMITE, DCN_BASICOS, AREAS_DCN, CARACT, NOMES_ATV, SECOES, uid, norm, lines, fmtN, fmtH, fmtP, aplicaCampus, novoProjeto, novoEixo, novaCompetencia, novaDisciplina, hidratar, dataISO, mesAno, calc, numeracao, haDisc, natureza, tp, ha2h, h2ha, validar, eqBusca, resumoSecoes, abntProblema, abntPartes, gerarPPC };
+  const API = { ROT_CARATER, carater, gerarXlsx, soTexto, SIGLAS_PADRAO, CAMPI, TEXTOS, LIMITE, DCN_BASICOS, AREAS_DCN, CARACT, NOMES_ATV, SECOES, uid, norm, lines, fmtN, fmtH, fmtP, aplicaCampus, novoProjeto, novoEixo, novaCompetencia, novaDisciplina, hidratar, dataISO, mesAno, calc, numeracao, haDisc, natureza, tp, ha2h, h2ha, validar, eqBusca, resumoSecoes, abntProblema, abntPartes, gerarPPC };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.PPCG = API;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -1948,11 +2081,16 @@ ${css}
       if (cur) out.push(cur);
       return out.map(p => p.replace(/^[●•−–*]\s+/, '- ').replace(/\s{2,}/g, ' '));
     }
-    const texto = ls => paragrafos(ls).join('\n');
+    // importação literal: cada parágrafo do arquivo vira um parágrafo, sem juntar linhas,
+    // sem trocar marcadores e sem mexer nos espaços. É o certo para .docx, que já tem parágrafos.
+    const literalParas = ls => ls.map(x => String(x == null ? '' : x).replace(/\s+$/, '')).filter(x => x.trim());
+    let LITERAL = false;
+    const texto = ls => (LITERAL ? literalParas(ls) : paragrafos(ls)).join('\n');
     const achaDepois = (L, re, de, ate) => { for (let i = de || 0; i < (ate == null ? L.length : ate); i++) if (re.test(L[i].trim())) return i; return -1; };
 
     function importar(linhasBrutas, opc) {
       const DOCX = !!(opc && opc.docx);
+      LITERAL = opc && opc.literal != null ? !!opc.literal : DOCX;   // .docx entra literal por padrão
       const L = preparar(linhasBrutas);
       const p = G.novoProjeto(); const I = p.id; const rel = [];
       p.meta.importado = { em: new Date().toISOString() };
@@ -2347,7 +2485,7 @@ const $$ = (s, r) => [...(r || document).querySelectorAll(s)];
 const h = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const G = window.PPCG;
 const KEY = 'ppc-grad-rascunho-v1', KEY_ANT = 'ppc-grad-rascunho-anterior';
-const VERSAO = '2.1', VERSAO_DATA = '27/11/2026', VERSAO_TAG = 'beta';
+const VERSAO = '2.2', VERSAO_DATA = '27/11/2026', VERSAO_TAG = 'beta';
 const AUTOR = { nome: 'Prof. Alexandre Rodrigues Farias', linkedin: 'https://www.linkedin.com/in/alexandre-rodrigues-farias' };
 let P = null, ISS = [], step = 'ident', selDisc = null, RASCUNHO = null;
 
@@ -2650,14 +2788,41 @@ const DICAS = {
 };
 function contagem(k) {
   const t = G.TEXTOS.find(x => x[0] === k); const g = t && t[2]; if (!g) return '';
-  const n = G.TEXTOS.filter(x => x[2] === g).reduce((a, x) => a + String(P.textos[x[0]] || '').length, 0);
+  const n = G.TEXTOS.filter(x => x[2] === g).reduce((a, x) => a + G.soTexto(P.textos[x[0]]).length, 0);
   const multi = G.TEXTOS.filter(x => x[2] === g).length > 1;
   return `<span class="cnt ${n > G.LIMITE ? 'bad' : 'ok'}" data-cg="${g}">${n.toLocaleString('pt-BR')} / ${G.LIMITE.toLocaleString('pt-BR')} car.${multi ? ' (com subitens)' : ''}</span>`;
 }
+// ---------- editor dos textos do PPC: formatação, listas e figuras ----------
+const EH_HTML = t => /<(p|div|br|b|strong|i|em|u|ul|ol|li|img|h[1-6]|span)\b/i.test(String(t || ''));
+// texto simples já digitado vira parágrafos, sem mudar uma palavra
+function textoParaHtml(t) {
+  const ls = String(t || '').split(/\r?\n/);
+  let out = '', lista = false;
+  ls.forEach(l => {
+    const s = l.trim();
+    if (/^[-–•·*]\s+/.test(s)) { if (!lista) { out += '<ul>'; lista = true; } out += `<li>${h(s.replace(/^[-–•·*]\s+/, ''))}</li>`; return; }
+    if (lista) { out += '</ul>'; lista = false; }
+    out += s ? `<p>${h(s)}</p>` : '<p><br></p>';
+  });
+  if (lista) out += '</ul>';
+  return out || '<p><br></p>';
+}
+const ED_BOTOES = [
+  ['bold', '<b>N</b>', 'Negrito (Ctrl+B)'], ['italic', '<i>I</i>', 'Itálico (Ctrl+I)'], ['underline', '<u>S</u>', 'Sublinhado (Ctrl+U)'], ['|'],
+  ['justifyLeft', '⬅', 'Alinhar à esquerda'], ['justifyCenter', '⬌', 'Centralizar'], ['justifyRight', '➡', 'Alinhar à direita'], ['justifyFull', '☰', 'Justificar'], ['|'],
+  ['insertUnorderedList', '• lista', 'Lista com marcadores'], ['insertOrderedList', '1. lista', 'Lista numerada'], ['|'],
+  ['figura', '🖼 Figura', 'Inserir uma figura ou gráfico (PNG ou JPG)'], ['removeFormat', 'limpar', 'Tirar a formatação do trecho selecionado']
+];
+function editorTextoHTML(k, valor) {
+  const corpo = EH_HTML(valor) ? valor : textoParaHtml(valor);
+  const barra = ED_BOTOES.map(b => b[0] === '|' ? '<span class="edsep"></span>'
+    : `<button type="button" class="edb" data-ed="${b[0]}" data-edk="${k}" title="${h(b[2])}">${b[1]}</button>`).join('');
+  return `<div class="edbox"><div class="edbar">${barra}</div><div class="edit" contenteditable="true" data-edtexto="${k}" spellcheck="true">${corpo}</div></div>`;
+}
 function vTextos() {
   const eng = P.id.tipoCurso === 'engenharia';
-  return `<h2>Textos do projeto</h2><p class="lead">Seções 1 a 7 do modelo da IN DIRGRAD nº 01/2023. O modelo da IN indica, em cada seção, o máximo de 8.000 caracteres (algumas incluem os subitens); o texto da própria IN diz que esse limite é sugerido, para manter o PPC objetivo. Por isso, passar do limite gera um aviso, e não uma pendência. Linhas iniciadas por “- ” viram itens de lista.</p>` +
-    G.TEXTOS.filter(([k]) => eng || k !== 'polDoc').map(([k, tit, g, obr]) => `<div class="card"><div class="flabel" style="margin-top:0"><b style="color:var(--acc);font-size:14px">${h(eng && k === 'tcc' ? tit : tit.replace('Projeto Final de Curso', 'Trabalho de Conclusão de Curso'))}</b>${obr ? RQ : ''}<span class="sp"></span>${contagem(k)}</div><p class="g">${h(DICAS[k] || '')}</p>${inp('textos.' + k, P.textos[k], { type: 'textarea', cls: /introducao|justificativa|contexto|referencias/.test(k) ? 'tall' : '' })}</div>`).join('') + '<div data-iss="textos"></div>';
+  return `<h2>Textos do projeto</h2><p class="lead">Seções 1 a 7 do modelo da IN DIRGRAD nº 01/2023. O modelo da IN indica, em cada seção, o máximo de 8.000 caracteres (algumas incluem os subitens); o texto da própria IN diz que esse limite é sugerido, para manter o PPC objetivo. Por isso, passar do limite gera um aviso, e não uma pendência. Use a barra acima de cada seção para negrito, itálico, alinhamento, listas e figuras — a formatação vai para o documento gerado. As referências continuam em texto simples, uma por linha.</p>` +
+    G.TEXTOS.filter(([k]) => eng || k !== 'polDoc').map(([k, tit, g, obr]) => `<div class="card"><div class="flabel" style="margin-top:0"><b style="color:var(--acc);font-size:14px">${h(eng && k === 'tcc' ? tit : tit.replace('Projeto Final de Curso', 'Trabalho de Conclusão de Curso'))}</b>${obr ? RQ : ''}<span class="sp"></span>${contagem(k)}</div><p class="g">${h(DICAS[k] || '')}</p>${k === 'referencias' ? inp('textos.' + k, P.textos[k], { type: 'textarea', cls: 'tall' }) : editorTextoHTML(k, P.textos[k])}</div>`).join('') + '<div data-iss="textos"></div>';
 }
 // competências
 function vComp() {
@@ -3529,7 +3694,7 @@ document.addEventListener('click', ev => {
   if (nv) { ev.preventDefault(); ev.stopPropagation(); verNorma(nv.dataset.nver, (nv.dataset.nterms || '').split('|').filter(Boolean), ''); }
 }, true);
 // ---------- importar PPC existente (PDF ou Word) ----------
-let PDFJS = null, IMPG = null, IMPORTADO = null;
+let PDFJS = null, IMPG = null, IMPORTADO = null, IMP_LINHAS = null;
 const polySrc = () => { const el = document.getElementById('ppc-polyfill'); return el ? el.textContent : ''; };
 async function carregaPdfjs() {
   if (PDFJS) return PDFJS;
@@ -3557,12 +3722,14 @@ async function importarPPC(buf, nome) {
     if (ehPdf) linhas = await IMPG.linhasDePdf(buf, await carregaPdfjs(), (i, n) => { const e = $('#impProg'); if (e) e.textContent = `Lendo página ${i} de ${n}…`; });
     else if (u8[0] === 0x50 && u8[1] === 0x4B) linhas = await IMPG.linhasDeDocx(buf);
     else throw new Error('Formato não reconhecido. Use PDF ou Word (.docx).');
-    const { projeto, relatorio } = IMPG.importar(linhas, { docx: !ehPdf });
+    IMP_LINHAS = { linhas, docx: !ehPdf, nome };
+    const { projeto, relatorio } = IMPG.importar(linhas, { docx: !ehPdf, literal: !ehPdf });
     if (!projeto.disciplinas.length && !Object.values(projeto.textos).some(t => t)) throw new Error('Não encontrei a estrutura de um PPC de graduação (seções numeradas, Quadro 1 e Quadro 2) neste arquivo.');
     IMPORTADO = projeto;
     modal(`<h3>PPC lido: ${h(projeto.id.curso || nome)}</h3>
       <p class="muted">Confira o que foi extraído. Depois de usar, revise as pendências: o gerador aponta o que faltou ou precisa de ajuste. O PPC lido fica guardado como <b>PPC anterior</b>, para referência na reestruturação.</p>
       <table class="t"><tbody>${relatorio.map(([k, v]) => `<tr><td>${h(k)}</td><td>${h(v)}</td></tr>`).join('')}</tbody></table>
+      <label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;font-size:13px"><input type="checkbox" id="impLiteral" style="width:auto;margin-top:3px"${!ehPdf ? ' checked' : ''}><span><b>Importação literal</b> — cada parágrafo do arquivo entra exatamente como está, sem juntar linhas nem trocar marcadores.${ehPdf ? ' Em PDF, o texto vem quebrado em linhas visuais: sem juntar, cada linha vira um parágrafo.' : ' É o modo certo para arquivos do Word, que já têm parágrafos.'}</span></label>
       <p class="muted" style="margin-top:10px">Ao usar, o projeto atual deste navegador é substituído. Se precisar dele, use “Salvar” antes.</p>
       <div class="row" style="margin-top:12px;gap:8px;justify-content:flex-end"><button class="ghost" data-mact="cancelar">Cancelar</button><button class="pri" data-impusar="1">Usar como base do novo PPC</button></div>`);
   } catch (err) {
@@ -3577,7 +3744,11 @@ document.addEventListener('change', ev => {
 });
 document.addEventListener('click', ev => {
   if (!ev.target.closest('[data-impusar]') || !IMPORTADO) return;
-  P = migrate(IMPORTADO); IMPORTADO = null; ligarEq();
+  const lit = $('#impLiteral');
+  if (lit && IMP_LINHAS && lit.checked !== (IMP_LINHAS.docx)) {
+    try { IMPORTADO = IMPG.importar(IMP_LINHAS.linhas, { docx: IMP_LINHAS.docx, literal: lit.checked }).projeto; } catch (e) { console.error(e); }
+  }
+  P = migrate(IMPORTADO); IMPORTADO = null; IMP_LINHAS = null; ligarEq();
   // equalizadas sem bibliografia no PPC lido: usa a da Deliberação CGRAD nº 32/22
   let nEqB = 0;
   P.disciplinas.forEach(d => { if (d.caracteristica !== 'Equalizada' || (d.bibBasica && d.bibComp)) return; const q = G.eqBusca(d.nome); if (!q) return; if (!d.bibBasica && q.bibBasica.length) d.bibBasica = q.bibBasica.join('\n'); if (!d.bibComp && q.bibComp.length) d.bibComp = q.bibComp.join('\n'); nEqB++; });
@@ -3962,7 +4133,16 @@ async function colabAbrir() {
       ${listaHTML()}
       <div class="row" style="justify-content:space-between;margin-top:10px;gap:8px"><span><button class="ghost" data-colab="sair">Sair do ${ADAPT.termo || 'PPC'} compartilhado</button>${(CO.dono || (CO.meta && CO.user && CO.meta.dono === CO.user.uid)) ? ` <button class="ghost" data-colab="excluir" data-pid="${h(CO.pid)}" data-k="x${h(CO.pid)}" title="Apaga este ${ADAPT.termo || 'PPC'} da nuvem, para todos os membros">Excluir da nuvem</button>` : ''}</span><span><button class="ghost" data-colab="logout">Trocar de conta</button> <button data-mact="cancelar">Fechar</button></span></div></div>`);
   }
-  modal(`<div class="colab"><h3>Trabalhar em equipe</h3><p class="muted">Você entrou como <b>${h(CO.user.nome)}</b> (${h(CO.user.email)}).</p>
+  // sem equipe conectada o projeto é uma cópia local: a janela diz isso de saída, com nome e horário
+  const localEm = P && P.meta && P.meta.atualizado ? Date.parse(P.meta.atualizado) : 0;
+  modal(`<div class="colab"><h3>${(ADAPT.termo || 'PPC')==='parecer'?'Parecer':'PPC'} nesta tela: ${h(ADAPT.curso(P) || 'sem nome')}</h3>
+    <p class="muted">Você entrou como <b>${h(CO.user.nome)}</b> (${h(CO.user.email)}).</p>
+    <table class="t" style="margin-bottom:10px"><tbody>
+      <tr><td style="width:190px" class="muted">Onde este projeto está</td><td><b style="color:#8a6100">Só neste navegador</b> — ainda não está na nuvem, e ninguém mais o vê</td></tr>
+      <tr><td class="muted">Última alteração na sua tela</td><td>${h(fmtQuando(localEm))}</td></tr>
+      <tr><td class="muted">Disciplinas / eixos</td><td>${(P.disciplinas || []).length} disciplina(s) · ${(P.eixos || []).length} eixo(s)</td></tr>
+    </tbody></table>
+    <p class="muted" style="font-size:12.5px">Guarde uma cópia com <b>Salvar</b> (arquivo .json no seu computador) ou publique-o na nuvem com o botão abaixo, para trabalhar em equipe e não depender deste navegador.</p>
     <div class="flabel">${(ADAPT.termo || 'PPC')==='parecer'?'Pareceres compartilhados com você':'PPCs compartilhados com você'}</div>
     ${listaHTML()}
     <div class="flabel">Compartilhar o ${ADAPT.termo || 'PPC'} que está aberto agora</div>
@@ -4363,6 +4543,60 @@ document.addEventListener('drop', ev => {
 document.addEventListener('dblclick', ev => {
   const c = ev.target.closest && ev.target.closest('[data-hc]'); if (!c) return;
   ev.preventDefault(); selDisc = c.dataset.hc; go('disc');
+});
+
+// ---------- comandos do editor de textos ----------
+let ED_FIG_K = null;
+function edFoco(k) { const el = $(`[data-edtexto="${k}"]`); if (el) { el.focus(); return el; } return null; }
+function edGuarda(el) {
+  const k = el.dataset.edtexto; if (!k) return;
+  P.textos[k] = el.innerHTML;
+  const t = G.TEXTOS.find(x => x[0] === k);
+  if (t && t[2]) { const c = $(`[data-cg="${t[2]}"]`); if (c) c.outerHTML = contagem(k); }
+  touch();
+}
+document.addEventListener('click', ev => {
+  const b = ev.target.closest('[data-ed]'); if (!b) return;
+  ev.preventDefault();
+  const cmd = b.dataset.ed, k = b.dataset.edk, el = edFoco(k); if (!el) return;
+  if (cmd === 'figura') { ED_FIG_K = k; const f = $('#fFigura'); if (f) f.click(); return; }
+  try { document.execCommand(cmd, false, null); } catch (e) { }
+  edGuarda(el);
+});
+document.addEventListener('input', ev => { const el = ev.target.closest && ev.target.closest('[data-edtexto]'); if (el) edGuarda(el); });
+// cola sem trazer a formatação de origem (fontes, cores e marcações do Word ou do navegador)
+document.addEventListener('paste', ev => {
+  const el = ev.target.closest && ev.target.closest('[data-edtexto]'); if (!el) return;
+  ev.preventDefault();
+  const txt = (ev.clipboardData || window.clipboardData).getData('text/plain') || '';
+  const html = txt.split(/\r?\n/).map(l => l.trim() ? `<p>${h(l)}</p>` : '<p><br></p>').join('');
+  try { document.execCommand('insertHTML', false, html); } catch (e) { }
+  edGuarda(el);
+});
+// figura: reduz a imagem a no máximo 1200 px de largura e insere no ponto do cursor
+document.addEventListener('change', async ev => {
+  const inpF = ev.target; if (inpF.id !== 'fFigura' || !inpF.files[0] || !ED_FIG_K) return;
+  const arq = inpF.files[0]; inpF.value = '';
+  const k = ED_FIG_K; ED_FIG_K = null;
+  if (!/^image\/(png|jpe?g)$/.test(arq.type)) return toast('Use uma figura em PNG ou JPG.');
+  try {
+    const url = await new Promise((ok, err) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = err; r.readAsDataURL(arq); });
+    const img = await new Promise((ok, err) => { const i = new Image(); i.onload = () => ok(i); i.onerror = err; i.src = url; });
+    let dataURL = url;
+    const MAX = 1200;
+    if (img.naturalWidth > MAX) {
+      const c = document.createElement('canvas');
+      c.width = MAX; c.height = Math.round(img.naturalHeight * MAX / img.naturalWidth);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      dataURL = c.toDataURL(arq.type === 'image/png' ? 'image/png' : 'image/jpeg', 0.9);
+    }
+    const leg = prompt('Legenda da figura (opcional):', '') || '';
+    const el = edFoco(k); if (!el) return;
+    const fig = `<p style="text-align:center"${leg ? ` data-legenda="${h(leg)}"` : ''}><img src="${dataURL}" alt="${h(leg || 'figura')}"></p>${leg ? `<p style="text-align:center" class="legfig">${h(leg)}</p>` : ''}<p><br></p>`;
+    try { document.execCommand('insertHTML', false, fig); } catch (e) { el.insertAdjacentHTML('beforeend', fig); }
+    edGuarda(el);
+    toast('Figura inserida. Ela entra no PPC gerado, centralizada.');
+  } catch (e) { console.error(e); toast('Não foi possível ler a figura.'); }
 });
 
 // início: sempre em branco; rascunho anterior guardado para retomar

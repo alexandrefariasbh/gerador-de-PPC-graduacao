@@ -340,6 +340,18 @@ table.t.qeixo thead th{background:var(--ceixo,#fafbfc)}
 .hresumo b{color:var(--txt);font-weight:600}
 .hresumo .ok b{color:var(--ok)}
 .hresumo .falta b{color:#b26a00}
+.t tr.sublin td{background:#f3f7f8}
+/* retângulos de igual altura na linha: a célula estica os cartões para acompanhar a de laboratório */
+.hgrade td.hcel{vertical-align:top;height:1px}
+.hcelin{display:flex;flex-direction:column;gap:3px;height:100%}
+.hcelin .hcard{margin:0;flex:1 1 0;display:flex;flex-direction:column;justify-content:center}
+.hpool .hcelin{display:inline}
+.hcard.sel{outline:2px solid var(--acc2);outline-offset:1px;box-shadow:0 0 0 3px rgba(19,165,168,.18)}
+/* atividades da comissão */
+.tarcard{border-left:5px solid var(--acc2)}
+.t tr.tarok td{background:#f3faf5}
+.t tr.taratraso td{background:#fdf3f2}
+.iss .ir.atr{color:#8a5a00}
 
 .sobre p{margin:0 0 8px;text-align:justify}.sobre ol,.sobre ul{margin:4px 0 8px;padding-left:22px}.sobre li{margin:3px 0}
 </style>
@@ -488,6 +500,7 @@ window.PPCG_QR = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKQAAACkCAAAAAA8
       atv: { compl: { h: 0, eixoId: '' }, ext: { h: 0, eixoId: '' }, pfc1: { h: 12.5, eixoId: '' }, pfc2: { h: 12.5, eixoId: '' }, estSup: { h: 12.5, eixoId: '' }, estagio: { h: 0 }, optMin: { h: 0 }, eletMax: { h: 0 } },
       docentes: [],
       infra: { incluir: true, equipamentos: true, intro: '', ambientes: [], predios: [] },
+      tarefas: [], presidente: '',
       dist: { ext: {}, opt: {}, pfc1: '', pfc2: '', estSup: '', estagio: '' },
       anterior: null
     };
@@ -512,7 +525,7 @@ window.PPCG_QR = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKQAAACkCAAAAAA8
     const b = novoProjeto();
     p.id = Object.assign(b.id, p.id || {}); p.id.dirigentes = Object.assign(b.id.dirigentes, p.id.dirigentes || {});
     p.id.comissoes = Object.assign(b.id.comissoes, p.id.comissoes || {});
-    Object.keys(p.id.comissoes).forEach(k => { const c = p.id.comissoes[k] = Object.assign(membrosVazios(), p.id.comissoes[k] || {}); c.membros = membrosLista(c).map(x => Object.assign({ nome: '', funcao: '', depto: '' }, x)); });
+    Object.keys(p.id.comissoes).forEach(k => { const c = p.id.comissoes[k] = Object.assign(membrosVazios(), p.id.comissoes[k] || {}); c.membros = membrosLista(c).map(x => Object.assign({ id: uid(), nome: '', funcao: '', depto: '' }, x)); });
     p.textos = Object.assign(b.textos, p.textos || {});
     p.atv = Object.assign(b.atv, p.atv || {}); Object.keys(b.atv).forEach(k => { p.atv[k] = Object.assign({}, b.atv[k], p.atv[k] || {}); });
     p.competencias = (p.competencias || []).map(novaCompetencia);
@@ -522,6 +535,8 @@ window.PPCG_QR = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKQAAACkCAAAAAA8
     p.docentes = (p.docentes || []).map(x => Object.assign({ id: uid(), nome: '', titulacao: '', area: '', regime: '', depto: '', nde: false }, x));
     if (p.siglas == null) p.siglas = '';
     if (!p.horario || typeof p.horario !== 'object') p.horario = {};
+    p.tarefas = (p.tarefas || []).map(x => Object.assign({ id: uid(), para: '', paraNome: '', titulo: '', descricao: '', passo: '', criadoEm: '', criadoPor: '', prazo: '', resolvidoEm: '', resolvidoPor: '', confirmadoEm: '', confirmadoPor: '' }, x));
+    if (typeof p.presidente !== 'string') p.presidente = '';
     p.infra = Object.assign({ incluir: true, equipamentos: true, intro: '', ambientes: [], predios: [] }, p.infra || {});
     p.infra.ambientes = (p.infra.ambientes || []).map(novoAmbiente);
     p.infra.predios = (p.infra.predios || []).map(novoPredio);
@@ -1848,6 +1863,134 @@ window.PPCG_MODELO={"meta":{"formato":"ppc-grad","versao":1,"modelo":"Engenharia
     return c;
   }
 
+// ---- paginação na tela: cada .pg passa a ter a altura de uma folha ----
+const PAGINADOR = '<' + 'script>' + `(function(){
+function med(el){var r=el.getBoundingClientRect();return {el:el,top:r.top,bot:r.bottom,h:r.height};}
+function cadeia(pg){ var c=[pg], a=pg;
+  while(a.children.length===1 && a.firstElementChild.tagName!=='TABLE' && a.firstElementChild.children.length>0){ a=a.firstElementChild; c.push(a); }
+  return c; }
+function clonaCadeia(c){ var topo=null, pai=null;
+  for(var i=0;i<c.length;i++){ var n=c[i].cloneNode(false); n.removeAttribute('id'); if(pai)pai.appendChild(n); else topo=n; pai=n; }
+  return {topo:topo, fundo:pai}; }
+function fatias(itens,lim1,lim,ini){
+  var corte=[0], atual=lim1;
+  for(var i=0;i<itens.length;i++){
+    if(itens[i].bot-ini>atual-2 && itens[i].top-ini>1){ corte.push(i); ini=itens[i].top; atual=lim; }
+  }
+  return corte;
+}
+function novaTabela(tb,cg,cab,semId){
+  var nova=tb.cloneNode(false); nova.removeAttribute('id');
+  if(cg)nova.appendChild(cg.cloneNode(true));
+  if(cab){ var ch=cab.cloneNode(true);
+    if(semId)[].slice.call(ch.querySelectorAll('[id]')).forEach(function(x){x.removeAttribute('id');x.classList.remove('cmt-hl');});
+    nova.appendChild(ch); }
+  return nova;
+}
+function divideTabela(tb,util,primeiro){
+  var cg=tb.querySelector(':scope>colgroup'), cab=tb.querySelector(':scope>thead');
+  var hc=cab?cab.getBoundingClientRect().height:0;
+  var linhas=[].slice.call(tb.querySelectorAll(':scope>tbody>tr'));
+  var pai=tb.parentNode, ref=tb.nextSibling;
+  if(linhas.length>1){
+    var m=linhas.map(med), corte=fatias(m,(primeiro||util)-hc,util-hc,m[0].top);
+    if(corte.length<2)return false;
+    for(var c=0;c<corte.length;c++){
+      var nova=novaTabela(tb,cg,cab,c>0), tbody=document.createElement('tbody'); nova.appendChild(tbody);
+      var fim=(c+1<corte.length)?corte[c+1]:linhas.length;
+      for(var j=corte[c];j<fim;j++)tbody.appendChild(linhas[j]);
+      pai.insertBefore(nova,ref);
+    }
+    pai.removeChild(tb); return true;
+  }
+  // quadro de uma linha só (programa da disciplina): divide o conteúdo da célula
+  var tr=linhas[0]; if(!tr)return false;
+  var tds=[].slice.call(tr.children); if(tds.length!==1)return false;
+  var td=tds[0], blocos=[].slice.call(td.children); if(blocos.length<2)return false;
+  var mb=blocos.map(med), ct=fatias(mb,(primeiro||util)-hc,util-hc,mb[0].top);
+  if(ct.length<2)return false;
+  for(var c2=0;c2<ct.length;c2++){
+    var nt=novaTabela(tb,cg,cab,c2>0), tb2=document.createElement('tbody');
+    var tr2=tr.cloneNode(false); tr2.removeAttribute('id');
+    var td2=td.cloneNode(false); td2.removeAttribute('id');
+    var fim2=(c2+1<ct.length)?ct[c2+1]:blocos.length;
+    for(var j2=ct[c2];j2<fim2;j2++)td2.appendChild(blocos[j2]);
+    tr2.appendChild(td2); tb2.appendChild(tr2); nt.appendChild(tb2);
+    pai.insertBefore(nt,ref);
+  }
+  pai.removeChild(tb); return true;
+}
+function quebra(pg,util){
+  var c=cadeia(pg), cont=c[c.length-1];
+  // 1. quadros que não cabem no que resta da folha são divididos
+  var filhos=[].slice.call(cont.children), i=0, ini=null, giros=0;
+  while(i<filhos.length && giros<4000){
+    giros++;
+    var r=filhos[i].getBoundingClientRect();
+    if(ini===null)ini=r.top;
+    if(r.bottom-ini>util+1){
+      var resto=util-(r.top-ini);
+      if(filhos[i].tagName==='TABLE' && r.height>resto-1 && resto>70 && divideTabela(filhos[i],util,resto)){
+        filhos=[].slice.call(cont.children); continue;
+      }
+      ini=(r.top-ini>1)?r.top:(r.bottom-util);
+    }
+    i++;
+  }
+  // 2. cortes de página
+  filhos=[].slice.call(cont.children); if(filhos.length<2)return;
+  var m2=filhos.map(med), p0=m2[0].top, corte2=[];
+  for(var k=0;k<m2.length;k++){ if(m2[k].bot-p0>util+1 && m2[k].top-p0>1){ corte2.push(k); p0=m2[k].top; } }
+  if(!corte2.length)return;
+  var ref2=pg.nextSibling, pai2=pg.parentNode;
+  for(var z=corte2.length-1;z>=0;z--){
+    var cl=clonaCadeia(c), mover=filhos.slice(corte2[z]);
+    for(var j3=0;j3<mover.length;j3++)cl.fundo.appendChild(mover[j3]);
+    pai2.insertBefore(cl.topo,ref2); ref2=cl.topo; filhos=filhos.slice(0,corte2[z]);
+  }
+}
+function paginar(){
+  try{
+    var pgs=[].slice.call(document.querySelectorAll('.pg'));
+    for(var k=0;k<pgs.length;k++){
+      var pg=pgs[k]; if(pg.classList.contains('vazio'))continue;
+      var cs=getComputedStyle(pg), pt=parseFloat(cs.paddingTop)||0, pb=parseFloat(cs.paddingBottom)||0;
+      var larg=pg.getBoundingClientRect().width;
+      var H=larg*(pg.classList.contains('pai')?(210/297):(297/210));
+      var util=H-pt-pb; if(util<120)continue;
+      if(pg.scrollHeight<=H+2)continue;
+      quebra(pg,util);
+    }
+    numerar();
+    document.documentElement.setAttribute('data-paginado','1');
+  }catch(e){ document.documentElement.setAttribute('data-paginado','erro'); }
+}
+// na tela as caixas de margem do @page não aparecem: o rodapé e o número da folha são desenhados em cada .pg
+function numerar(){
+  var txt=document.body.getAttribute('data-rodape')||'', tam=document.body.getAttribute('data-rodapetam')||'8';
+  var cabTxt=document.body.getAttribute('data-cab')||'', cabLogo=document.body.getAttribute('data-cablogo')||'', cabTam=document.body.getAttribute('data-cabtam')||'10';
+  var pgs=[].slice.call(document.querySelectorAll('.pg')), n=0;
+  for(var i=0;i<pgs.length;i++){
+    var pg=pgs[i]; if(pg.classList.contains('vazio'))continue;
+    n++;
+    var vc=pg.querySelector(':scope>.pgcab'); if(vc)pg.removeChild(vc);
+    if(cabTxt||cabLogo){
+      var dc=document.createElement('div'); dc.className='pgcab'; dc.setAttribute('aria-hidden','true');
+      dc.innerHTML=(cabLogo?'<img src="'+cabLogo+'" alt="">':'<span></span>')+'<span class="pgcabt"></span>';
+      dc.lastChild.textContent=cabTxt; dc.style.fontSize=cabTam+'pt';
+      pg.appendChild(dc);
+    }
+    var velho=pg.querySelector(':scope>.pgrod'); if(velho)pg.removeChild(velho);
+    var d=document.createElement('div'); d.className='pgrod'; d.setAttribute('aria-hidden','true');
+    d.innerHTML='<span class="pgrodn"></span><span class="pgrodt"></span>';
+    d.lastChild.textContent=txt; d.firstChild.textContent=String(n);
+    d.style.fontSize=tam+'pt';
+    pg.appendChild(d);
+  }
+}
+if(document.readyState==='complete')paginar();else addEventListener('load',paginar);
+})();` + '<' + '/script>';
+
   function converter(partes, opc) {
     opc = opc || {};
     const P = new DOMParser();
@@ -2012,12 +2155,18 @@ window.PPCG_MODELO={"meta":{"formato":"ppc-grad","versao":1,"modelo":"Engenharia
     const corH = (H1 && H1[0] && H1[0].cor) || '333', corF = (F1 && F1[0] && F1[0].cor) || '333';
     const logoCab = opc.logoCabecalho || '';
     const M = '25mm'; // margens (1418 twips)
-    const margem = (nome, larg) => `@page ${nome}{size:${larg};margin:${M} ${M} 19mm ${M};
+    // rodapé em duas faixas: o número da página fica ACIMA da tarja cinza, que traz só as linhas do rodapé
+    const nLin = Math.max(1, (fTxt || '').split('\n').filter(Boolean).length);
+    const altTxt = nLin * fTam * 1.25 * 0.3528;                       // altura do bloco de texto, em mm
+    const BOT = Math.max(16, Math.round((altTxt + 9) * 10) / 10);     // margem inferior da página
+    const grTopo = Math.max(8, Math.min(60, (BOT - 2 - altTxt - 1.2) / BOT * 100)).toFixed(1);
+    const TARJA = `linear-gradient(to bottom,rgba(0,0,0,0) 0 ${grTopo}%,${FAIXA} ${grTopo}% 97%,rgba(0,0,0,0) 97% 100%)`;
+    const margem = (nome, larg) => `@page ${nome}{size:${larg};margin:${M} ${M} ${BOT}mm ${M};
       @top-left{content:${logoCab ? `image-set(url(${logoCab}) 3x) ` : ''}${q(h0.length > 1 ? h0[0] : '')};font:8pt ${FONTE};color:#${corH};vertical-align:bottom;padding-bottom:3mm}
       @top-right{content:${q(h0[h0.length - 1])};font:${opc.moderno ? 8.5 : 10}pt ${FONTE};color:#${opc.moderno ? '64748B' : '000'};vertical-align:bottom;padding-bottom:3mm${opc.moderno ? '' : ';border-bottom:0'}}
-      @bottom-left{content:${lin(fBal.left)};white-space:pre;font:${fTam}pt ${FONTE};color:#3a3a3a;vertical-align:center;background:${FAIXA};padding:0.8mm 1.5mm}
-      @bottom-center{content:${lin(fBal.center)};white-space:pre;text-align:center;font:${fTam}pt ${FONTE};color:#3a3a3a;vertical-align:center;background:${FAIXA};padding:0.8mm 1.5mm}
-      @bottom-right{content:counter(page);text-align:right;font:700 ${Math.max(8, fTam + 0.5)}pt ${FONTE};color:#${opc.moderno ? '0B1F3A' : '222'};vertical-align:center;background:${FAIXA};padding:0.8mm 1.5mm}}`;
+      @bottom-left{content:${lin(fBal.left)};white-space:pre;font:${fTam}pt ${FONTE};color:#3a3a3a;vertical-align:bottom;background:${TARJA};padding:0 1.5mm 2mm}
+      @bottom-center{content:${lin(fBal.center)};white-space:pre;text-align:center;font:${fTam}pt ${FONTE};color:#3a3a3a;vertical-align:bottom;background:${TARJA};padding:0 1.5mm 2mm}
+      @bottom-right{content:counter(page);text-align:right;font:700 ${Math.max(8, fTam + 1.5)}pt ${FONTE};color:#${opc.moderno ? '0B1F3A' : '222'};vertical-align:top;padding:0 0 0 2.5mm}}`;
     let pageCss = `@page vazio{size:A4;margin:0}\n${margem('ret', 'A4')}\n${margem('pai', 'A4 landscape')}`;
     // corpo
     let html = '';
@@ -2047,125 +2196,7 @@ window.PPCG_MODELO={"meta":{"formato":"ppc-grad","versao":1,"modelo":"Engenharia
       html += paginas.map((cont, i) => cont.length || ctxs[i].ancoras.length ? `<section class="pg ${nome}">${ctxs[i].ancoras.join('')}<div class="ct">${cont.join('')}</div></section>` : '').join('');
     });
 
-// ---- paginação na tela: cada .pg passa a ter a altura de uma folha ----
-const PAGINADOR = '<' + 'script>' + `(function(){
-function med(el){var r=el.getBoundingClientRect();return {el:el,top:r.top,bot:r.bottom,h:r.height};}
-function cadeia(pg){ var c=[pg], a=pg;
-  while(a.children.length===1 && a.firstElementChild.tagName!=='TABLE' && a.firstElementChild.children.length>0){ a=a.firstElementChild; c.push(a); }
-  return c; }
-function clonaCadeia(c){ var topo=null, pai=null;
-  for(var i=0;i<c.length;i++){ var n=c[i].cloneNode(false); n.removeAttribute('id'); if(pai)pai.appendChild(n); else topo=n; pai=n; }
-  return {topo:topo, fundo:pai}; }
-function fatias(itens,lim1,lim,ini){
-  var corte=[0], atual=lim1;
-  for(var i=0;i<itens.length;i++){
-    if(itens[i].bot-ini>atual-2 && itens[i].top-ini>1){ corte.push(i); ini=itens[i].top; atual=lim; }
-  }
-  return corte;
-}
-function novaTabela(tb,cg,cab,semId){
-  var nova=tb.cloneNode(false); nova.removeAttribute('id');
-  if(cg)nova.appendChild(cg.cloneNode(true));
-  if(cab){ var ch=cab.cloneNode(true);
-    if(semId)[].slice.call(ch.querySelectorAll('[id]')).forEach(function(x){x.removeAttribute('id');x.classList.remove('cmt-hl');});
-    nova.appendChild(ch); }
-  return nova;
-}
-function divideTabela(tb,util,primeiro){
-  var cg=tb.querySelector(':scope>colgroup'), cab=tb.querySelector(':scope>thead');
-  var hc=cab?cab.getBoundingClientRect().height:0;
-  var linhas=[].slice.call(tb.querySelectorAll(':scope>tbody>tr'));
-  var pai=tb.parentNode, ref=tb.nextSibling;
-  if(linhas.length>1){
-    var m=linhas.map(med), corte=fatias(m,(primeiro||util)-hc,util-hc,m[0].top);
-    if(corte.length<2)return false;
-    for(var c=0;c<corte.length;c++){
-      var nova=novaTabela(tb,cg,cab,c>0), tbody=document.createElement('tbody'); nova.appendChild(tbody);
-      var fim=(c+1<corte.length)?corte[c+1]:linhas.length;
-      for(var j=corte[c];j<fim;j++)tbody.appendChild(linhas[j]);
-      pai.insertBefore(nova,ref);
-    }
-    pai.removeChild(tb); return true;
-  }
-  // quadro de uma linha só (programa da disciplina): divide o conteúdo da célula
-  var tr=linhas[0]; if(!tr)return false;
-  var tds=[].slice.call(tr.children); if(tds.length!==1)return false;
-  var td=tds[0], blocos=[].slice.call(td.children); if(blocos.length<2)return false;
-  var mb=blocos.map(med), ct=fatias(mb,(primeiro||util)-hc,util-hc,mb[0].top);
-  if(ct.length<2)return false;
-  for(var c2=0;c2<ct.length;c2++){
-    var nt=novaTabela(tb,cg,cab,c2>0), tb2=document.createElement('tbody');
-    var tr2=tr.cloneNode(false); tr2.removeAttribute('id');
-    var td2=td.cloneNode(false); td2.removeAttribute('id');
-    var fim2=(c2+1<ct.length)?ct[c2+1]:blocos.length;
-    for(var j2=ct[c2];j2<fim2;j2++)td2.appendChild(blocos[j2]);
-    tr2.appendChild(td2); tb2.appendChild(tr2); nt.appendChild(tb2);
-    pai.insertBefore(nt,ref);
-  }
-  pai.removeChild(tb); return true;
-}
-function quebra(pg,util){
-  var c=cadeia(pg), cont=c[c.length-1];
-  // 1. quadros que não cabem no que resta da folha são divididos
-  var filhos=[].slice.call(cont.children), i=0, ini=null, giros=0;
-  while(i<filhos.length && giros<4000){
-    giros++;
-    var r=filhos[i].getBoundingClientRect();
-    if(ini===null)ini=r.top;
-    if(r.bottom-ini>util+1){
-      var resto=util-(r.top-ini);
-      if(filhos[i].tagName==='TABLE' && r.height>resto-1 && resto>70 && divideTabela(filhos[i],util,resto)){
-        filhos=[].slice.call(cont.children); continue;
-      }
-      ini=(r.top-ini>1)?r.top:(r.bottom-util);
-    }
-    i++;
-  }
-  // 2. cortes de página
-  filhos=[].slice.call(cont.children); if(filhos.length<2)return;
-  var m2=filhos.map(med), p0=m2[0].top, corte2=[];
-  for(var k=0;k<m2.length;k++){ if(m2[k].bot-p0>util+1 && m2[k].top-p0>1){ corte2.push(k); p0=m2[k].top; } }
-  if(!corte2.length)return;
-  var ref2=pg.nextSibling, pai2=pg.parentNode;
-  for(var z=corte2.length-1;z>=0;z--){
-    var cl=clonaCadeia(c), mover=filhos.slice(corte2[z]);
-    for(var j3=0;j3<mover.length;j3++)cl.fundo.appendChild(mover[j3]);
-    pai2.insertBefore(cl.topo,ref2); ref2=cl.topo; filhos=filhos.slice(0,corte2[z]);
-  }
-}
-function paginar(){
-  try{
-    var pgs=[].slice.call(document.querySelectorAll('.pg'));
-    for(var k=0;k<pgs.length;k++){
-      var pg=pgs[k]; if(pg.classList.contains('vazio'))continue;
-      var cs=getComputedStyle(pg), pt=parseFloat(cs.paddingTop)||0, pb=parseFloat(cs.paddingBottom)||0;
-      var larg=pg.getBoundingClientRect().width;
-      var H=larg*(pg.classList.contains('pai')?(210/297):(297/210));
-      var util=H-pt-pb; if(util<120)continue;
-      if(pg.scrollHeight<=H+2)continue;
-      quebra(pg,util);
-    }
-    numerar();
-    document.documentElement.setAttribute('data-paginado','1');
-  }catch(e){ document.documentElement.setAttribute('data-paginado','erro'); }
-}
-// na tela as caixas de margem do @page não aparecem: o rodapé e o número da folha são desenhados em cada .pg
-function numerar(){
-  var txt=document.body.getAttribute('data-rodape')||'', tam=document.body.getAttribute('data-rodapetam')||'8';
-  var pgs=[].slice.call(document.querySelectorAll('.pg')), n=0;
-  for(var i=0;i<pgs.length;i++){
-    var pg=pgs[i]; if(pg.classList.contains('vazio'))continue;
-    n++;
-    var velho=pg.querySelector(':scope>.pgrod'); if(velho)pg.removeChild(velho);
-    var d=document.createElement('div'); d.className='pgrod'; d.setAttribute('aria-hidden','true');
-    d.innerHTML='<span class="pgrodt"></span><span class="pgrodn"></span>';
-    d.firstChild.textContent=txt; d.lastChild.textContent=String(n);
-    d.style.fontSize=tam+'pt';
-    pg.appendChild(d);
-  }
-}
-if(document.readyState==='complete')paginar();else addEventListener('load',paginar);
-})();` + '<' + '/script>';
+
 
     const doc2 = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(opc.titulo || 'PPC')}</title><style>
 ${pageCss}
@@ -2189,17 +2220,332 @@ thead{display:table-header-group}
 img{max-width:100%}
 ${css}
 @media screen{body{background:#e8ecf1}.pg{background:#fff;margin:12px auto;box-shadow:0 2px 12px rgba(0,0,0,.15);width:210mm;min-height:297mm;box-sizing:border-box;padding:25mm}.pg.pai{width:297mm;min-height:210mm}.pg.vazio{padding:25mm}
-.pgrod{position:absolute;left:25mm;right:25mm;bottom:5mm;display:flex;align-items:center;gap:5mm;color:#3a3a3a;line-height:1.25;background:#e6e8ea;padding:0.9mm 2mm}
-.pgrodt{flex:1;white-space:pre-line;text-align:center}
-.pgrodn{font-weight:700;color:#333;white-space:nowrap;min-width:16px;text-align:right;padding-left:4mm;border-left:.4pt solid #c8ccd2}
+.pgcab{position:absolute;left:25mm;right:25mm;top:11mm;display:flex;align-items:flex-end;gap:10px;color:#333;line-height:1.2}
+.pgcab img{height:9mm;width:auto;object-fit:contain}
+.pgcabt{flex:1;text-align:right}
+.pg.vazio .pgcab{display:none}
+.pgrod{position:absolute;left:25mm;right:25mm;bottom:4mm;color:#3a3a3a;line-height:1.25}
+.pgrodt{display:block;white-space:pre-line;text-align:center;background:#e6e8ea;padding:1mm 2mm}
+.pgrodn{display:block;font-weight:700;color:#333;text-align:right;padding:0 0 1.5mm}
 .pg.vazio .pgrod{display:none}
 .barra{position:sticky;top:0;z-index:5;background:#0b1f3a;color:#fff;font:14px system-ui;padding:10px 16px;display:flex;gap:12px;align-items:center}.barra button{font:inherit;background:#13a5a8;color:#fff;border:0;border-radius:8px;padding:8px 14px;cursor:pointer}}
-@media print{.barra{display:none}.pgrod{display:none}}
-</style></head><body data-rodape="${esc(fTxt).replace(/"/g, '&quot;').replace(/\n/g, '&#10;')}" data-rodapetam="${fTam}">${opc.barra ? `<div class="barra"><b style="flex:1">${esc(opc.titulo || 'PPC')}</b><span>Na janela de impressão, escolha <b>Salvar como PDF</b>.</span><button onclick="print()">Salvar em PDF / Imprimir</button></div>` : ''}${html}${PAGINADOR}${opc.autoPrint ? '<script>addEventListener("load",()=>setTimeout(()=>print(),900))<\/script>' : ''}</body></html>`;
+@media print{.barra{display:none}.pgrod,.pgcab{display:none}}
+</style></head><body data-rodape="${esc(fTxt).replace(/"/g, '&quot;').replace(/\n/g, '&#10;')}" data-rodapetam="${fTam}" data-cab="${esc(h0[h0.length - 1] || '').replace(/"/g, '&quot;')}" data-cabtam="${opc.moderno ? 8.5 : 10}" data-cablogo="${(logoCab || '').replace(/"/g, '&quot;')}">${opc.barra ? `<div class="barra"><b style="flex:1">${esc(opc.titulo || 'PPC')}</b><span>Na janela de impressão, escolha <b>Salvar como PDF</b>.</span><button onclick="print()">Salvar em PDF / Imprimir</button></div>` : ''}${html}${PAGINADOR}${opc.autoPrint ? '<script>addEventListener("load",()=>setTimeout(()=>print(),900))<\/script>' : ''}</body></html>`;
     return doc2;
   }
-  root.PPC_PDF = { converter };
+  // documento simples (relatórios do gerador) na mesma folha A4, com cabeçalho, tarja de rodapé e paginação
+  function documento(opc) {
+    opc = opc || {};
+    const rod = (opc.rodape || []).filter(x => String(x || '').trim());
+    const fTam = 7.5, FAIXA = '#e6e8ea';
+    const altTxt = Math.max(1, rod.length) * fTam * 1.25 * 0.3528;
+    const BOT = Math.max(16, Math.round((altTxt + 9) * 10) / 10);
+    const grTopo = Math.max(8, Math.min(60, (BOT - 2 - altTxt - 1.2) / BOT * 100)).toFixed(1);
+    const TARJA = `linear-gradient(to bottom,rgba(0,0,0,0) 0 ${grTopo}%,${FAIXA} ${grTopo}% 97%,rgba(0,0,0,0) 97% 100%)`;
+    const lin = arr => arr.length ? arr.map(x => '"' + String(x).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"').join(' "\\A" ') : '""';
+    return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(opc.titulo || 'Relatório')}</title><style>
+@page{size:A4;margin:25mm 25mm ${BOT}mm 25mm;
+  @top-left{content:${opc.logo ? `image-set(url(${opc.logo}) 3x) ` : ''}"";vertical-align:bottom;padding-bottom:3mm}
+  @top-right{content:"${String(opc.cab || '').replace(/"/g, '\\"')}";font:9pt ${FONTE};color:#333;vertical-align:bottom;padding-bottom:3mm}
+  @bottom-center{content:${lin(rod)};white-space:pre;text-align:center;font:${fTam}pt ${FONTE};color:#3a3a3a;vertical-align:bottom;background:${TARJA};padding:0 1.5mm 2mm}
+  @bottom-right{content:counter(page);text-align:right;font:700 ${fTam + 1.5}pt ${FONTE};color:#222;vertical-align:top;padding:0 0 0 2.5mm}}
+html,body{margin:0;padding:0}
+body{font:10.5pt/1.35 ${FONTE};color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+p{margin:0 0 5pt}
+.pg{position:relative;break-after:page}
+.pg:last-child{break-after:auto}
+thead{display:table-header-group}
+tr{break-inside:avoid}
+${opc.css || ''}
+@media screen{body{background:#e8ecf1}.pg{background:#fff;margin:12px auto;box-shadow:0 2px 12px rgba(0,0,0,.15);width:210mm;min-height:297mm;box-sizing:border-box;padding:25mm}
+.pgcab{position:absolute;left:25mm;right:25mm;top:11mm;display:flex;align-items:flex-end;gap:10px;color:#333;line-height:1.2}
+.pgcab img{height:9mm;width:auto;object-fit:contain}
+.pgcabt{flex:1;text-align:right}
+.pgrod{position:absolute;left:25mm;right:25mm;bottom:4mm;color:#3a3a3a;line-height:1.25}
+.pgrodt{display:block;white-space:pre-line;text-align:center;background:${FAIXA};padding:1mm 2mm}
+.pgrodn{display:block;font-weight:700;color:#333;text-align:right;padding:0 0 1.5mm}}
+@media print{.pgrod,.pgcab{display:none}}
+</style></head><body data-rodape="${esc(rod.join('\n')).replace(/"/g, '&quot;').replace(/\n/g, '&#10;')}" data-rodapetam="${fTam}" data-cab="${esc(opc.cab || '').replace(/"/g, '&quot;')}" data-cabtam="9" data-cablogo="${(opc.logo || '').replace(/"/g, '&quot;')}"><section class="pg ret"><div class="ct">${opc.corpo || ''}</div></section>${PAGINADOR}</body></html>`;
+  }
+  root.PPC_PDF = { converter, documento };
 })(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* pdfout.js — escreve um arquivo PDF de verdade a partir da página já paginada.
+   Lê o documento da prévia (seções .pg), mede cada palavra onde o navegador a desenhou
+   e grava texto, tarjas, bordas e imagens num PDF com texto selecionável.
+   Sem bibliotecas externas: usa as 14 fontes padrão do PDF (Helvetica/Times/Courier). */
+(function (root) {
+  'use strict';
+  const PX = 0.75;                       // 1 px CSS = 0,75 pt
+  const enc = new TextEncoder();
+
+  // ---------- bytes ----------
+  function Saida() {
+    const partes = []; let n = 0;
+    return {
+      get tam() { return n; },
+      texto(s) { const b = enc.encode(s); partes.push(b); n += b.length; },
+      bytes(b) { partes.push(b); n += b.length; },
+      juntar() { const r = new Uint8Array(n); let o = 0; partes.forEach(p => { r.set(p, o); o += p.length; }); return r; }
+    };
+  }
+  // texto latino-1/WinAnsi dentro de string PDF
+  const WIN = { 0x20AC: 128, 0x201A: 130, 0x0192: 131, 0x201E: 132, 0x2026: 133, 0x2020: 134, 0x2021: 135, 0x02C6: 136, 0x2030: 137, 0x0160: 138, 0x2039: 139, 0x0152: 140, 0x017D: 142, 0x2018: 145, 0x2019: 146, 0x201C: 147, 0x201D: 148, 0x2022: 149, 0x2013: 150, 0x2014: 151, 0x02DC: 152, 0x2122: 153, 0x0161: 154, 0x203A: 155, 0x0153: 156, 0x017E: 158, 0x0178: 159 };
+  function strPDF(s) {
+    let out = '';
+    for (const ch of String(s)) {
+      const c = ch.codePointAt(0);
+      let b = c < 256 ? c : (WIN[c] || 0);
+      if (!b) b = 63;                                  // fora do WinAnsi vira "?"
+      if (b === 40 || b === 41 || b === 92) out += '\\';
+      out += String.fromCharCode(b);
+    }
+    return out;
+  }
+  // a string acima tem bytes > 127; escreve direto, sem UTF-8
+  function bytesLatin(s) { const b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i) & 0xff; return b; }
+
+  // ---------- fontes padrão ----------
+  const FAMILIAS = [
+    { teste: /courier|mono/i, base: ['Courier', 'Courier-Bold', 'Courier-Oblique', 'Courier-BoldOblique'], css: 'Courier New, monospace' },
+    { teste: /^(times|georgia|garamond|book|cambria|constantia|serif)/i, base: ['Times-Roman', 'Times-Bold', 'Times-Italic', 'Times-BoldItalic'], css: 'Times New Roman, Times, serif' },
+    { teste: /./, base: ['Helvetica', 'Helvetica-Bold', 'Helvetica-Oblique', 'Helvetica-BoldOblique'], css: 'Helvetica, Arial, sans-serif' }
+  ];
+  function escolheFonte(familia, peso, italico) {
+    // só a primeira família da lista decide; "sans-serif" no fim não pode virar Times
+    const prim = String(familia || '').split(',')[0].replace(/["']/g, '').trim();
+    const f = FAMILIAS.find(x => x.teste.test(prim)) || FAMILIAS[2];
+    const b = (+peso >= 600 || peso === 'bold') ? 1 : 0, i = italico ? 2 : 0;
+    return { nome: f.base[b + i], css: f.css, negrito: !!b, italico: !!i };
+  }
+
+  // ---------- medição ----------
+  const cv = document.createElement('canvas'), ctx = cv.getContext('2d');
+  const cacheAsc = new Map();
+  function ascentDe(fontCss) {
+    if (cacheAsc.has(fontCss)) return cacheAsc.get(fontCss);
+    ctx.font = fontCss;
+    const m = ctx.measureText('Hxp');
+    const a = (m.fontBoundingBoxAscent != null ? m.fontBoundingBoxAscent : m.actualBoundingBoxAscent) || 0;
+    const d = (m.fontBoundingBoxDescent != null ? m.fontBoundingBoxDescent : m.actualBoundingBoxDescent) || 0;
+    const r = { asc: a, desc: d };
+    cacheAsc.set(fontCss, r); return r;
+  }
+  function largura(texto, fontCss) { ctx.font = fontCss; return ctx.measureText(texto).width; }
+
+  // ---------- conversão de cor ----------
+  function cor(css) {
+    const m = String(css || '').match(/rgba?\(([^)]+)\)/);
+    if (!m) return null;
+    const p = m[1].split(',').map(x => parseFloat(x));
+    if (p.length > 3 && p[3] < 0.05) return null;
+    return [p[0] / 255, p[1] / 255, p[2] / 255];
+  }
+  const n2 = v => (Math.round(v * 100) / 100).toString();
+  const c3 = c => `${n2(c[0])} ${n2(c[1])} ${n2(c[2])}`;
+
+  // ---------- varredura de uma página ----------
+  function varrerPagina(pg, origem, alturaPt, estado) {
+    const doc = pg.ownerDocument, vis = doc.defaultView || window;
+    const getComputedStyle = el => vis.getComputedStyle(el);
+    const ops = [];
+    const X = x => n2((x - origem.x) * PX);
+    // o corpo ancora no topo da folha; o rodapé ancora na base, para a folha sair sempre em A4
+    const Ytopo = y => alturaPt - (y - origem.y) * PX;
+    const Ybase = y => (origem.base - y) * PX;
+    let Yf = Ytopo;
+    const Y = y => n2(Yf(y));
+    const ancora = el => { Yf = (el && el.closest && el.closest('.pgrod')) ? Ybase : Ytopo; };
+    const rect = (r, c) => {
+      if (!c || r.width <= 0 || r.height <= 0) return;
+      ops.push(`${c3(c)} rg ${X(r.left)} ${Y(r.bottom)} ${n2(r.width * PX)} ${n2(r.height * PX)} re f`);
+    };
+    // 1) fundos, bordas e imagens
+    const els = pg.querySelectorAll('*');
+    for (const el of els) {
+      if (el.classList && (el.classList.contains('pgrodn') || el.classList.contains('pgrodt') || el.classList.contains('pgrod'))) { /* rodapé entra igual */ }
+      const cs = getComputedStyle(el);
+      if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+      ancora(el);
+      const r = el.getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) continue;
+      const bg = cor(cs.backgroundColor);
+      if (bg) rect(r, bg);
+      const bgi = cs.backgroundImage;
+      if (bgi && bgi !== 'none' && /gradient/.test(bgi)) {
+        // tarja do rodapé: gradiente de duas paradas; aproxima pela cor sólida da faixa
+        const mm = bgi.match(/rgba?\([^)]+\)/g) || [];
+        const sol = mm.map(cor).find(c => c);
+        const pp = bgi.match(/(\d+(?:\.\d+)?)%/g) || [];
+        if (sol && pp.length >= 2) {
+          const ini = parseFloat(pp[1]) / 100, fim = pp.length > 2 ? parseFloat(pp[2]) / 100 : 1;
+          rect({ left: r.left, bottom: r.top + r.height * fim, width: r.width, height: r.height * (fim - ini) }, sol);
+        } else if (sol) rect(r, sol);
+      }
+      for (const lado of ['Top', 'Right', 'Bottom', 'Left']) {
+        const w = parseFloat(cs['border' + lado + 'Width']) || 0;
+        if (w <= 0 || cs['border' + lado + 'Style'] === 'none') continue;
+        const c = cor(cs['border' + lado + 'Color']); if (!c) continue;
+        const b = lado === 'Top' ? { left: r.left, bottom: r.top + w, width: r.width, height: w }
+          : lado === 'Bottom' ? { left: r.left, bottom: r.bottom, width: r.width, height: w }
+            : lado === 'Left' ? { left: r.left, bottom: r.bottom, width: w, height: r.height }
+              : { left: r.right - w, bottom: r.bottom, width: w, height: r.height };
+        rect(b, c);
+      }
+      if (el.tagName === 'IMG' && el.src) {
+        const id = estado.imagem(el);
+        if (id) ops.push(`q ${n2(r.width * PX)} 0 0 ${n2(r.height * PX)} ${X(r.left)} ${Y(r.bottom)} cm /${id} Do Q`);
+      }
+    }
+    // 2) texto, palavra por palavra, onde o navegador desenhou
+    const it = doc.createNodeIterator(pg, NodeFilter.SHOW_TEXT, {
+      acceptNode: n => (n.nodeValue && n.nodeValue.trim()) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
+    });
+    const faixa = doc.createRange();
+    let no;
+    while ((no = it.nextNode())) {
+      const pai = no.parentElement; if (!pai) continue;
+      ancora(pai);
+      const cs = getComputedStyle(pai);
+      if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0) continue;
+      const tam = parseFloat(cs.fontSize) || 12;
+      const f = escolheFonte(cs.fontFamily, cs.fontWeight, /italic|oblique/.test(cs.fontStyle));
+      const rec = estado.fonte(f.nome);
+      const c = cor(cs.color) || [0, 0, 0];
+      const cssReal = `${/italic|oblique/.test(cs.fontStyle) ? 'italic ' : ''}${cs.fontWeight} ${tam}px ${cs.fontFamily}`;
+      const cssPdf = `${f.italico ? 'italic ' : ''}${f.negrito ? '700 ' : '400 '}${tam}px ${f.css}`;
+      const { asc } = ascentDe(cssReal);
+      const txt = no.nodeValue;
+      // posições de cada palavra dentro do nó
+      const re = /\S+/g; let m;
+      const sub = [];
+      while ((m = re.exec(txt))) sub.push([m.index, m.index + m[0].length, m[0]]);
+      for (const [i0, i1, palavra] of sub) {
+        faixa.setStart(no, i0); faixa.setEnd(no, i1);
+        const rs = faixa.getClientRects();
+        if (!rs.length) continue;
+        const r = rs[0];
+        if (r.width <= 0) continue;
+        const lp = largura(palavra, cssPdf);
+        const tz = lp > 0.01 ? Math.max(40, Math.min(250, r.width / lp * 100)) : 100;
+        const base = r.top + asc;
+        ops.push(`BT /${rec} ${n2(tam * PX)} Tf ${c3(c)} rg ${n2(tz)} Tz ${X(r.left)} ${Y(base)} Td (${strPDF(palavra)}) Tj ET`);
+      }
+      // sublinhado e tachado
+      if (/underline|line-through/.test(cs.textDecorationLine || cs.textDecoration || '')) {
+        faixa.selectNodeContents(no);
+        for (const r of faixa.getClientRects()) {
+          if (r.width <= 0) continue;
+          const esp = Math.max(0.6, tam * 0.055);
+          const y = /line-through/.test(cs.textDecorationLine || cs.textDecoration) ? r.top + asc - tam * 0.26 : r.top + asc + tam * 0.1;
+          rect({ left: r.left, bottom: y + esp, width: r.width, height: esp }, cor(cs.textDecorationColor) || c);
+        }
+      }
+    }
+    return ops.join('\n');
+  }
+
+  // ---------- montagem do arquivo ----------
+  async function gerar(doc, opc) {
+    opc = opc || {};
+    const aviso = opc.progresso || (() => { });
+    const pgs = [...doc.querySelectorAll('.pg')].filter(p => p.getBoundingClientRect().height > 2);
+    if (!pgs.length) throw new Error('A página ainda não terminou de ser montada.');
+
+    const objetos = [];                                   // cada objeto: string ou {cab, dados}
+    const novoObj = o => { objetos.push(o); return objetos.length; };
+
+    // fontes usadas
+    const fontes = new Map();
+    const pedirFonte = nome => {
+      if (!fontes.has(nome)) fontes.set(nome, { rec: 'F' + (fontes.size + 1), num: 0 });
+      return fontes.get(nome).rec;
+    };
+    // imagens usadas (por src)
+    const imgs = new Map();
+    const pedirImagem = el => {
+      const chave = el.currentSrc || el.src;
+      if (imgs.has(chave)) return imgs.get(chave).rec;
+      try {
+        const w = el.naturalWidth || el.width, hh = el.naturalHeight || el.height;
+        if (!w || !hh) return null;
+        const lim = 1600, esc = Math.min(1, lim / Math.max(w, hh));
+        const cc = document.createElement('canvas');
+        cc.width = Math.max(1, Math.round(w * esc)); cc.height = Math.max(1, Math.round(hh * esc));
+        const cx = cc.getContext('2d');
+        cx.fillStyle = '#fff'; cx.fillRect(0, 0, cc.width, cc.height);
+        cx.drawImage(el, 0, 0, cc.width, cc.height);
+        const dataURL = cc.toDataURL('image/jpeg', 0.9);
+        const b64 = dataURL.split(',')[1];
+        const bin = atob(b64); const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        const rec = 'Im' + (imgs.size + 1);
+        imgs.set(chave, { rec, bytes, w: cc.width, h: cc.height, num: 0 });
+        return rec;
+      } catch (e) { return null; }
+    };
+
+    // conteúdo de cada página
+    const paginas = [];
+    for (let i = 0; i < pgs.length; i++) {
+      const pg = pgs[i];
+      const r = pg.getBoundingClientRect();
+      const pais = pg.classList.contains('pai');
+      const larguraPt = Math.round(r.width * PX * 100) / 100;
+      // a altura da folha é a do papel (A4), e não a da caixa na tela, que pode passar alguns pontos
+      const padrao = Math.round(larguraPt * (pais ? 210 / 297 : 297 / 210) * 100) / 100;
+      const medida = r.height * PX;
+      const alturaPt = Math.abs(medida - padrao) < 60 ? padrao : Math.round(medida * 100) / 100;
+      const ops = varrerPagina(pg, { x: r.left, y: r.top, base: r.bottom }, alturaPt, { fonte: pedirFonte, imagem: pedirImagem });
+      paginas.push({ larguraPt, alturaPt, ops });
+      if (i % 5 === 0) { aviso(i + 1, pgs.length); await new Promise(r => setTimeout(r)); }
+    }
+    aviso(pgs.length, pgs.length);
+
+    // objetos: fontes
+    fontes.forEach((v, nome) => { v.num = novoObj(`<< /Type /Font /Subtype /Type1 /BaseFont /${nome} /Encoding /WinAnsiEncoding >>`); });
+    // objetos: imagens
+    imgs.forEach(v => {
+      v.num = novoObj({ cab: `<< /Type /XObject /Subtype /Image /Width ${v.w} /Height ${v.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${v.bytes.length} >>`, dados: v.bytes });
+    });
+    const recFontes = [...fontes.values()].map(v => `/${v.rec} ${v.num} 0 R`).join(' ');
+    const recImgs = [...imgs.values()].map(v => `/${v.rec} ${v.num} 0 R`).join(' ');
+    // objetos: páginas e conteúdos
+    const numPaginas = [];
+    const numPai = objetos.length + paginas.length * 2 + 1;   // reservado abaixo
+    paginas.forEach(p => {
+      const dados = bytesLatin(p.ops);
+      const nc = novoObj({ cab: `<< /Length ${dados.length} >>`, dados });
+      numPaginas.push(novoObj(`<< /Type /Page /Parent ${numPai} 0 R /MediaBox [0 0 ${n2(p.larguraPt)} ${n2(p.alturaPt)}] /Resources << /Font << ${recFontes} >>${recImgs ? ` /XObject << ${recImgs} >>` : ''} >> /Contents ${nc} 0 R >>`));
+    });
+    const nPai = novoObj(`<< /Type /Pages /Kids [${numPaginas.map(n => n + ' 0 R').join(' ')}] /Count ${numPaginas.length} >>`);
+    const nCat = novoObj(`<< /Type /Catalog /Pages ${nPai} 0 R >>`);
+    const agora = new Date();
+    const z = n => String(n).padStart(2, '0');
+    const dt = `D:${agora.getFullYear()}${z(agora.getMonth() + 1)}${z(agora.getDate())}${z(agora.getHours())}${z(agora.getMinutes())}${z(agora.getSeconds())}`;
+    const nInfo = novoObj(`<< /Title (${strPDF(opc.titulo || 'PPC')}) /Producer (Gerador de PPC) /Creator (Gerador de PPC) /CreationDate (${dt}) >>`);
+
+    // escreve
+    const out = Saida();
+    out.texto('%PDF-1.4\n%âãÏÓ\n');
+    const desloc = [];
+    objetos.forEach((o, i) => {
+      desloc[i] = out.tam;
+      if (typeof o === 'string') out.bytes(bytesLatin(`${i + 1} 0 obj\n${o}\nendobj\n`));
+      else { out.bytes(bytesLatin(`${i + 1} 0 obj\n${o.cab}\nstream\n`)); out.bytes(o.dados); out.bytes(bytesLatin('\nendstream\nendobj\n')); }
+    });
+    const xref = out.tam;
+    let tx = `xref\n0 ${objetos.length + 1}\n0000000000 65535 f \n`;
+    desloc.forEach(d => { tx += String(d).padStart(10, '0') + ' 00000 n \n'; });
+    tx += `trailer\n<< /Size ${objetos.length + 1} /Root ${nCat} 0 R /Info ${nInfo} 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+    out.bytes(bytesLatin(tx));
+    return out.juntar();
+  }
+
+  root.PPC_PDFOUT = { gerar };
+})(window);
 
 </script>
 <script>
@@ -2648,7 +2994,7 @@ const $$ = (s, r) => [...(r || document).querySelectorAll(s)];
 const h = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const G = window.PPCG;
 const KEY = 'ppc-grad-rascunho-v1', KEY_ANT = 'ppc-grad-rascunho-anterior';
-const VERSAO = '2.4', VERSAO_DATA = '27/11/2026', VERSAO_TAG = 'beta';
+const VERSAO = '2.5', VERSAO_DATA = '27/11/2026', VERSAO_TAG = 'beta';
 const AUTOR = { nome: 'Prof. Alexandre Rodrigues Farias', linkedin: 'https://www.linkedin.com/in/alexandre-rodrigues-farias' };
 let P = null, ISS = [], step = 'ident', selDisc = null, RASCUNHO = null;
 
@@ -2749,7 +3095,11 @@ function revalidate() {
     el.innerHTML = issHTML(filtroIss(el.dataset.iss), alvo || PASSO_SEC[step] || '');
   });
   if (step === 'disc') atualizaListaDisc();
-  if (step === 'ch') { const s = $('#q3'); if (s) s.innerHTML = quadro3HTML(); }
+  if (step === 'ch') {
+    const s = $('#q3'); if (s) s.innerHTML = quadro3HTML();
+    const r = $('#chSomaOE');
+    if (r) { const soma = (+P.atv.optMin.h || 0) + (+P.atv.eletMax.h || 0), C = G.calc(P); r.children[1].innerHTML = `<b>${G.fmtH(soma)}</b>`; r.children[2].textContent = `${G.fmtH(G.h2ha(soma, C.min))} h/a`; }
+  }
   if (step === 'eixos') {
     const C = G.calc(P), num = G.numeracao(P);
     $$('[data-chEixo]').forEach(el => { const x = C.porEixo.find(q => q.e.id === el.dataset.cheixo); if (x) el.textContent = `${G.fmtH(x.h)} h obrigatórias · ${x.ha} h/a em disciplinas`; });
@@ -2776,8 +3126,9 @@ function filtroIss(spec) {
   const [sec, modo] = spec.split('|');
   return ISS.filter(i => sec.split(',').includes(i.sec) && (modo === 'geral' ? !i.ref : true));
 }
-function issHTML(list, sec) {
+function issHTML(list, sec, atribuir) {
   const pdf = !!(window.PPC_VER_ISS && P && P.id);
+  const podeAtribuir = atribuir && typeof comissao === 'function' && comissao().length;
   if (!list.length) return pdf && sec
     ? `<a href="#" class="okline go" data-anppcsec="${h(sec)}">✓ Sem pendências neste item. <b>Ver este item no PPC em PDF ›</b></a>`
     : '<div class="okline">✓ Sem pendências neste item.</div>';
@@ -2786,7 +3137,8 @@ function issHTML(list, sec) {
     const atalho = pdf
       ? ` <a href="#" class="ir" data-goiss="${k}" title="Ir para o campo a corrigir">ir ›</a> <a href="#" class="ir pdf" data-anppc="${k}" title="Ver o ponto no PPC em PDF, comentado">ver no PDF ›</a>`
       : ' <span class="ir">ir ›</span>';
-    return `<li class="${i.sev} go"${pdf ? '' : ` data-goiss="${k}"`}><span>${i.sev === 'erro' ? '●' : '▲'}</span><span class="m">${h(i.msg)}${atalho}</span>${i.fonte ? `<a href="#" class="flink" data-fonte="${k}" title="Ver o trecho da norma">📄 ${h(i.fonte)}</a>` : ''}</li>`;
+    const atr = podeAtribuir ? ` <a href="#" class="ir atr" data-tar="atribuir" data-tiss="${k}" title="Atribuir a correção a um membro da comissão">atribuir ›</a>` : '';
+    return `<li class="${i.sev} go"${pdf ? '' : ` data-goiss="${k}"`}><span>${i.sev === 'erro' ? '●' : '▲'}</span><span class="m">${h(i.msg)}${atalho}${atr}</span>${i.fonte ? `<a href="#" class="flink" data-fonte="${k}" title="Ver o trecho da norma">📄 ${h(i.fonte)}</a>` : ''}</li>`;
   }).join('') + '</ul>';
 }
 const PASSO_SEC = {}; STEPS.forEach(([k, , secs]) => { if (secs && secs.length) PASSO_SEC[k] = secs[0]; });
@@ -3321,15 +3673,18 @@ function vMatriz() {
   <label>Carga horária em <select data-mx="un">${opt('un', 'h', 'horas')}${opt('un', 'ha', 'horas-aula')}</select></label>
   <label>Pré/correquisitos por <select data-mx="ref">${opt('ref', 'seq', 'nº sequencial')}${opt('ref', 'cod', 'código')}</select></label>
   <label class="ck"><input type="checkbox" data-mx="det"${MX.det ? ' checked' : ''}> detalhes no cartão</label>
-  <span style="flex:1"></span><button class="sm" data-act="mxDist">Atividades por período</button><button class="sm" data-act="mvPdf">Imprimir / salvar em PDF</button></div>
+  <span style="flex:1"></span>${btnDesfazer()}<button class="sm" data-act="mxDist">Atividades por período</button><button class="sm" data-act="mvPdf">Imprimir / salvar em PDF</button></div>
   <div class="card mxcard" style="padding:12px" id="mxwrap">${matrizHTML(false)}</div></div>${mxPainel()}`;
 }
 let mxT = null;
 function mxAtualiza() { clearTimeout(mxT); mxT = setTimeout(() => { const w = $('#mxwrap'); if (!w || step !== 'matriz') return; const g = $('#mgrid'), sx = g ? g.scrollLeft : 0; w.innerHTML = matrizHTML(false); const g2 = $('#mgrid'); if (g2) g2.scrollLeft = sx; }, 250); }
 function mxRender() { const sx = $('#mgrid') ? $('#mgrid').scrollLeft : 0, sy = window.scrollY; render(); const g = $('#mgrid'); if (g) g.scrollLeft = sx; window.scrollTo(0, sy); }
+// botões de desfazer (a pilha vive no módulo do horário)
+const btnDesfazer = () => `<button class="sm ghost" data-act="desfazer" title="Desfazer a última mudança (Ctrl+Z)"${UNDO.pilha.length ? '' : ' disabled'}>↶ Desfazer</button><button class="sm ghost" data-act="refazer" title="Refazer (Ctrl+Shift+Z)"${UNDO.refazer.length ? '' : ' disabled'}>↷ Refazer</button>`;
 function moverDisc(id, destino) {
   const d = P.disciplinas.find(x => x.id === id); if (!d) return;
   const C = G.calc(P);
+  if (d.optativa !== (destino === 'opt') || (destino !== 'opt' && +d.periodo !== Math.max(1, Math.min(C.nP, +destino)))) guardaEstado();
   if (destino === 'opt') d.optativa = true;
   else { const k = Math.max(1, Math.min(C.nP, +destino)); d.optativa = false; d.periodo = k; }
   const sx = $('#mgrid') ? $('#mgrid').scrollLeft : 0, sy = window.scrollY;
@@ -3357,6 +3712,8 @@ document.addEventListener('change', ev => {
   const el = ev.target;
   if (el.dataset.mx) { const k = el.dataset.mx; MX[k] = el.type === 'checkbox' ? el.checked : el.value; mxGuarda(); mxRender(); return; }
   if (el.dataset.mvper) { moverDisc(el.dataset.mvper, el.value); return; }
+  if (el.hasAttribute && el.hasAttribute('data-tarq')) { TAR.quem = el.value; try { localStorage.setItem('ppcg-eu', TAR.quem); } catch (e) { } render(); return; }
+  if (el.hasAttribute && el.hasAttribute('data-tarpres')) { P.presidente = el.value; touch(true); return; }
   if (el.dataset.distp) { P.dist[el.dataset.distp] = el.value; touch(); mxAtualiza(); return; }
 });
 document.addEventListener('input', ev => {
@@ -3388,8 +3745,9 @@ function matrizPDF() {
 // atividades e carga horária
 function quadro3HTML() {
   const C = G.calc(P), pc = v => C.hTotal ? G.fmtP(v / C.hTotal * 100) : '–', HA = v => G.fmtH(G.h2ha(v, C.min));
-  const L = [['Disciplinas obrigatórias', C.hObr], ['Mínimo de disciplinas optativas', C.hOpt], ['Máximo de disciplinas eletivas', C.hElet], ['Atividades Complementares', C.hCompl], ['Integração das Ações de Extensão', C.hExt], ['Atividade de Projeto Final de Curso I', C.hPfc1], ['Atividade de Projeto Final de Curso II', C.hPfc2], ['Atividade de Estágio Supervisionado', C.hEstSup], ['Estágio Curricular Obrigatório', C.hEst]];
-  return `<table class="t"><thead><tr><th>Componente</th><th>h</th><th>h/a</th><th>%</th></tr></thead><tbody>${L.map(([n, v]) => `<tr><td>${n}</td><td>${G.fmtH(v)}</td><td>${HA(v)}</td><td>${pc(v)}</td></tr>`).join('')}<tr class="grp"><td>Carga horária total do curso</td><td>${G.fmtH(C.hTotal)}</td><td>${HA(C.hTotal)}</td><td>100%</td></tr></tbody></table>
+  const L = [['Disciplinas obrigatórias', C.hObr], ['Mínimo de disciplinas optativas', C.hOpt], ['Máximo de disciplinas eletivas', C.hElet], ['Total da carga horária de disciplinas optativas e eletivas', C.hOpt + C.hElet, 1], ['Atividades Complementares', C.hCompl], ['Integração das Ações de Extensão', C.hExt], ['Atividade de Projeto Final de Curso I', C.hPfc1], ['Atividade de Projeto Final de Curso II', C.hPfc2], ['Atividade de Estágio Supervisionado', C.hEstSup], ['Estágio Curricular Obrigatório', C.hEst]];
+  return `<table class="t"><thead><tr><th style="width:34px"></th><th>Tipo de componente curricular</th><th>h</th><th>h/a</th><th>%</th></tr></thead><tbody>${L.map(([n, v, sub], i) => `<tr${sub ? ' class="sublin"' : ''}><td class="muted" style="text-align:center">${i + 1}</td><td>${sub ? '<b>' + n + '</b>' : n}</td><td>${G.fmtH(v)}</td><td>${HA(v)}</td><td>${pc(v)}</td></tr>`).join('')}<tr class="grp"><td class="muted" style="text-align:center">${L.length + 1}</td><td>Carga horária total do curso</td><td>${G.fmtH(C.hTotal)}</td><td>${HA(C.hTotal)}</td><td>100%</td></tr></tbody></table>
+  <p class="g" style="margin:6px 0 0">A linha 4 soma as linhas 2 e 3; o total soma a linha 1 e as linhas 4 a 10 — as optativas e as eletivas entram uma única vez.</p>
   <div class="sum" style="margin-top:12px"><div class="kpi ${C.hTotal >= 3600 ? 'good' : 'bad'}"><div class="l">Total</div><div class="v">${G.fmtH(C.hTotal)} h</div><div class="h">mínimo 3.600 h</div></div><div class="kpi ${C.hExt >= C.hTotal * 0.1 && C.hExt ? 'good' : 'bad'}"><div class="l">Extensão</div><div class="v">${pc(C.hExt)}</div><div class="h">mínimo 10% (${G.fmtH(Math.ceil(C.hTotal * 0.1 * 10) / 10)} h)</div></div><div class="kpi ${C.hEst >= 160 ? 'good' : 'bad'}"><div class="l">Estágio</div><div class="v">${G.fmtH(C.hEst)} h</div><div class="h">mínimo 160 h</div></div></div>`;
 }
 function vCH() {
@@ -3400,6 +3758,7 @@ function vCH() {
   <div class="card"><table class="t"><thead><tr><th>Componente</th><th>Horas</th><th>Horas-aula</th><th>Eixo (Quadro 1)</th></tr></thead><tbody>
     ${lin('optMin', false, 'Carga mínima a cumprir em disciplinas optativas')}
     ${lin('eletMax', false, 'Carga máxima de disciplinas eletivas (quando prevista)')}
+    <tr class="sublin" id="chSomaOE"><td><b>Total de disciplinas optativas e eletivas</b><div class="muted" style="font-size:11.5px">Soma das duas linhas acima; é esta soma que entra na linha 4 do Quadro 3 e no total do curso</div></td><td><b>${G.fmtH((+A.optMin.h || 0) + (+A.eletMax.h || 0))}</b></td><td class="muted">${G.fmtH(G.h2ha((+A.optMin.h || 0) + (+A.eletMax.h || 0), C.min))} h/a</td><td></td></tr>
     ${lin('compl', true, 'Carga mínima para integralização')}
     ${lin('ext', true, 'Mínimo de 10% da carga horária total (Res. CNE/CES nº 7/2018)')}
     ${lin('pfc1', true, 'Atividade de orientação (padrão: 12,5 h = 15 h/a)')}
@@ -3417,11 +3776,25 @@ function vPessoal() {
   </tbody></table><div class="row" style="margin-top:10px"><button data-act="docAdd">+ Professor</button></div><div data-iss="pessoal"></div></div>`;
 }
 // pendências e geração
+// as três linhas da tarja de rodapé, iguais às do PPC gerado
+function rodapeLinhas() {
+  const I = P.id;
+  if (String(I.rodape || '').trim()) return G.lines(I.rodape);
+  const campusTxt = I.campus ? 'Campus ' + I.campus : '';
+  const instTit = (I.instituicao || '').toLowerCase().split(' ').map((w, i) => w.length > 2 || i === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w).join(' ');
+  const ano = (I.data || '').slice(0, 4);
+  return [
+    `Projeto Pedagógico do Curso de ${I.curso || 'Curso'}${campusTxt ? ' – ' + campusTxt : ''}${I.versao ? ' – versão ' + I.versao : ''}${ano ? ', ' + ano : ''}.`,
+    `${I.sigla ? I.sigla + ' – ' : ''}${instTit}${campusTxt ? ' – ' + campusTxt : ''}`,
+    I.endereco || ''
+  ].filter(x => String(x).trim());
+}
 function vValidar() {
   const res = G.resumoSecoes(ISS), e = ISS.filter(i => i.sev === 'erro').length, w = ISS.length - e;
-  return `<h2>Pendências</h2><p class="lead">Conferência automática contra a IN DIRGRAD nº 01/2023 e nº 02/2023, a Res. CEPE nº 18/22, a DCN das engenharias (Res. CNE/CES nº 2/2019) e a Res. CNE/CES nº 7/2018 (extensão). <b>Pendências</b> (●) impedem a conformidade; <b>avisos</b> (▲) pedem verificação. Clique em um item para ir ao campo.</p>
+  return `<h2>Pendências e atividades da comissão</h2>` + tarCardHTML() +
+  `<p class="lead">Conferência automática contra a IN DIRGRAD nº 01/2023 e nº 02/2023, a Res. CEPE nº 18/22, a DCN das engenharias (Res. CNE/CES nº 2/2019) e a Res. CNE/CES nº 7/2018 (extensão). <b>Pendências</b> (●) impedem a conformidade; <b>avisos</b> (▲) pedem verificação. Clique em um item para ir ao campo${comissao().length ? '; clique em <b>Atribuir</b> para passá-lo a um membro da comissão' : ''}.</p>
   <div class="sum" style="margin-bottom:14px"><div class="kpi ${e ? 'bad' : 'good'}"><div class="l">Pendências</div><div class="v">${e}</div></div><div class="kpi"><div class="l">Avisos</div><div class="v">${w}</div></div></div>` +
-  res.filter(r => r.issues.length).map(r => `<div class="card"><div class="row"><h3 style="flex:1">${h(r.nome)}</h3><button class="sm" data-step="${passoDe({ sec: r.k })}">Abrir tela</button></div>${issHTML(r.issues)}</div>`).join('') || '<div class="card empty">Nenhuma pendência.</div>';
+  (res.filter(r => r.issues.length).map(r => `<div class="card"><div class="row"><h3 style="flex:1">${h(r.nome)}</h3><button class="sm" data-step="${passoDe({ sec: r.k })}">Abrir tela</button></div>${issHTML(r.issues, '', true)}</div>`).join('') || '<div class="card empty">Nenhuma pendência.</div>');
 }
 function vGerar() {
   const e = ISS.filter(i => i.sev === 'erro').length;
@@ -3597,7 +3970,26 @@ document.addEventListener('click', async ev => {
   const gi = ev.target.closest('[data-goiss]'); if (gi) { ev.preventDefault(); return irPara(ISS[+gi.dataset.goiss]); }
   const ap = ev.target.closest('[data-anppc]'); if (ap) { ev.preventDefault(); if (window.PPC_VER_ISS) PPC_VER_ISS(+ap.dataset.anppc); return; }
   const as = ev.target.closest('[data-anppcsec]'); if (as) { ev.preventDefault(); if (window.PPC_VER_SECAO) PPC_VER_SECAO(as.dataset.anppcsec); return; }
+  const tb = ev.target.closest('[data-tar]');
+  if (tb) {
+    ev.preventDefault();
+    const a = tb.dataset.tar;
+    if (a === 'nova') return tarNova(null);
+    if (a === 'atribuir') return tarNova(ISS[+tb.dataset.tiss]);
+    if (a === 'salvar') return tarSalvar();
+    if (a === 'relatorio') return tarRelatorio();
+    return tarAcao(a, tb.dataset.id);
+  }
   const mc = ev.target.closest('[data-mact]'); if (mc) { modal(''); return; }
+  const fe = ev.target.closest('[data-fechar]'); if (fe) { ev.preventDefault(); modal(''); return; }
+  const hl = ev.target.closest('[data-hlimpa]');
+  if (hl) {
+    ev.preventDefault();
+    const pp = hl.dataset.hlimpa === '' ? null : +hl.dataset.hlimpa;
+    guardaEstado(); horLimpar(pp); modal(''); touch(true);
+    toast(pp ? `Horário do ${pp}º período limpo. Ctrl+Z desfaz.` : 'Horário limpo. Ctrl+Z desfaz.');
+    return;
+  }
   const nv = ev.target.closest('[data-novo]'); if (nv) { ev.preventDefault(); return novoComo(nv.dataset.novo); }
   const rs = ev.target.closest('[data-rasc]'); if (rs) {
     const abrir = rs.dataset.rasc === 'abrir', rasc = RASCUNHO;
@@ -3640,11 +4032,22 @@ document.addEventListener('click', async ev => {
     case 'infPrRm': { const I = infra(), i = I.predios.findIndex(x => x.id === t.dataset.id); if (i >= 0) { I.predios.splice(i, 1); touch(true); } break; }
     case 'infImportar': { $('#fInfra').value = ''; $('#fInfra').click(); break; }
     case 'infModelo': { infModelo(); break; }
+    case 'desfazer': desfazer(); break;
+    case 'refazer': refazer(); break;
     case 'horToggle': { const k = t.dataset.p; if (HOR_FECHADO.has(k)) HOR_FECHADO.delete(k); else HOR_FECHADO.add(k); render(); break; }
     case 'horFecharTodos': { for (let i = 1; i <= G.calc(P).nP; i++) HOR_FECHADO.add(String(i)); render(); break; }
     case 'horAbrirTodos': { HOR_FECHADO.clear(); render(); break; }
     case 'horCor': { HOR.cor = t.dataset.v === 'eixo' ? 'eixo' : 'disc'; try { localStorage.setItem('ppcg-hor-cor', HOR.cor); } catch (e) { } render(); break; }
-    case 'horLimpar': { const pp = t.dataset.p ? +t.dataset.p : null; if (!confirmar('hl' + (pp || 'all'), pp ? `Tirar da grade todas as aulas do ${pp}º período? Clique de novo para confirmar.` : 'Limpar o horário inteiro? Clique de novo para confirmar.')) break; horLimpar(pp); touch(true); toast(pp ? `Horário do ${pp}º período limpo.` : 'Horário limpo.'); break; }
+    case 'horLimpar': {
+      const pp = t.dataset.p ? +t.dataset.p : null;
+      let n = 0; Object.keys(P.horario || {}).forEach(k => { if (pp == null || k.startsWith(pp + ':')) n += horCel(k).length; });
+      if (!n) { toast(pp ? `O ${pp}º período já está vazio.` : 'O horário já está vazio.'); break; }
+      modal(`<h3>${pp ? `Limpar o horário do ${pp}º período?` : 'Limpar o horário inteiro?'}</h3>
+        <p>Isto tira da grade <b>${n} aula(s)</b>${pp ? '' : ' de <b>todos os períodos</b>'} e não pode ser desfeito pelo botão de desfazer depois de fechar o gerador.</p>
+        <p class="muted">As disciplinas continuam cadastradas: elas voltam para o quadro “A distribuir”.</p>
+        <div class="row" style="justify-content:flex-end;gap:8px"><button data-fechar>Cancelar</button><button class="pri" data-hlimpa="${pp == null ? '' : pp}">Limpar</button></div>`);
+      break;
+    }
     case 'gXlsx': try { baixar(nomeArquivo('xlsx', '', 'Disciplinas-e-horario'), G.gerarXlsx(P)); toast('Planilha gerada.'); } catch (e) { console.error(e); toast('Erro ao gerar a planilha: ' + e.message); } break;
     case 'eixoToggle': { if (EIXO_FECHADO.has(id)) EIXO_FECHADO.delete(id); else EIXO_FECHADO.add(id); render(); break; }
     case 'eixoFecharTodos': { P.eixos.forEach(e => EIXO_FECHADO.add(e.id)); render(); break; }
@@ -4002,7 +4405,7 @@ async function tutorialPDF() {
 }
 function abrirPrevia(html, titulo, ancora, arq) {
   let o = $('#previa'); if (!o) { o = document.createElement('div'); o.id = 'previa'; document.body.appendChild(o); }
-  o.innerHTML = `<div class="pv-bar"><b>${h(titulo)}</b><span class="muted" id="pvMsg">Montando as páginas… aguarde para o documento sair certo no PDF.</span><button class="tb pri" data-pv="print" disabled>Salvar em PDF</button><button class="tb" data-pv="aba" disabled>Abrir em nova aba</button><button class="tb" data-pv="baixar" title="Guarda a página pronta para impressão (.html); abra-a e mande imprimir para gerar o PDF" disabled>Baixar a página (.html)</button><button class="tb" data-pv="fechar">Fechar</button></div><iframe id="pvFrame"></iframe>`;
+  o.innerHTML = `<div class="pv-bar"><b>${h(titulo)}</b><span class="muted" id="pvMsg">Montando as páginas…</span><button class="tb pri" data-pv="pdf" disabled title="Grava o arquivo .pdf direto, sem passar pela janela de impressão">Baixar o PDF</button><button class="tb" data-pv="print" disabled title="Abre a janela de impressão do navegador">Imprimir</button><button class="tb" data-pv="fechar">Fechar</button></div><iframe id="pvFrame"></iframe>`;
   o.classList.add('on');
   o._html = html; o._titulo = titulo; o._arq = arq || nomeBase();
   const _fr = $('#pvFrame');
@@ -4014,7 +4417,7 @@ function abrirPrevia(html, titulo, ancora, arq) {
       try { pronto = !!_fr.contentDocument && !!_fr.contentDocument.documentElement.getAttribute('data-paginado'); } catch (e) { pronto = true; }
       if (!pronto && ++n < 900) return;
       clearInterval(lib);
-      const msg = $('#pvMsg'); if (msg) msg.innerHTML = `Clique em <b>Salvar em PDF</b> e, na janela de impressão, escolha “Salvar como PDF”. O arquivo sai com o nome <b>${h((o._arq || 'PPC') + '.pdf')}</b>.${ehChromium() ? '' : ' <b style="color:#b45309">Neste navegador o PDF pode sair sem cabeçalho, rodapé e número de página; para o PDF completo use Chrome ou Edge, ou baixe o arquivo .docx.</b>'}`;
+      const msg = $('#pvMsg'); if (msg) msg.innerHTML = `Clique em <b>Baixar o PDF</b>: o arquivo <b>${h((o._arq || 'PPC') + '.pdf')}</b> é gravado direto, com o texto selecionável.`;
       $$('#previa [data-pv]').forEach(b => b.disabled = false);
     }, 120);
   }
@@ -4034,20 +4437,30 @@ function abrirPrevia(html, titulo, ancora, arq) {
 document.addEventListener('click', ev => {
   const b = ev.target.closest('[data-pv]'); if (!b) return; const o = $('#previa');
   if (b.dataset.pv === 'fechar') { o.classList.remove('on'); o.innerHTML = ''; return; }
-  if (b.dataset.pv === 'print') { try { $('#pvFrame').contentWindow.focus(); $('#pvFrame').contentWindow.print(); } catch (e) { toast('A impressão foi bloqueada aqui: use “Baixar para imprimir”.'); } return; }
-  if (b.dataset.pv === 'baixar') baixar(`${o._arq}.html`, o._html.replace('</body>', '<script>addEventListener("load",()=>setTimeout(()=>print(),500))<\/script></body>'));
-  // abrir numa aba de verdade: imprimir dali é bem mais confiável do que imprimir de dentro do quadro
-  if (b.dataset.pv === 'aba') {
-    try {
-      const u = URL.createObjectURL(new Blob([o._html], { type: 'text/html' }));
-      const a = document.createElement('a'); a.href = u; a.target = '_blank'; a.rel = 'noopener';
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(u), 60000);
-      toast('Documento aberto em outra aba. Lá, use Ctrl+P → “Salvar como PDF”.');
-    } catch (e) { toast('O navegador bloqueou a nova aba: permita janelas para este site.'); }
-    return;
-  }
+  if (b.dataset.pv === 'print') { try { $('#pvFrame').contentWindow.focus(); $('#pvFrame').contentWindow.print(); } catch (e) { toast('A impressão foi bloqueada aqui; use “Baixar o PDF”.'); } return; }
+  if (b.dataset.pv === 'pdf') { salvarPDF(o); return; }
 });
+// grava o .pdf de verdade a partir do que está desenhado na prévia
+async function salvarPDF(o) {
+  const msg = $('#pvMsg'), botoes = $$('#previa [data-pv]');
+  const doc = $('#pvFrame') && $('#pvFrame').contentDocument;
+  if (!doc) { toast('A prévia ainda não está pronta.'); return; }
+  botoes.forEach(b => b.disabled = true);
+  const antes = msg ? msg.innerHTML : '';
+  try {
+    if (msg) msg.textContent = 'Gravando o PDF…';
+    const bytes = await PPC_PDFOUT.gerar(doc, {
+      titulo: o._arq || 'PPC',
+      progresso: (i, n) => { if (msg) msg.textContent = `Gravando o PDF… página ${i} de ${n}`; }
+    });
+    await baixar(`${o._arq || 'PPC'}.pdf`, new Blob([bytes], { type: 'application/pdf' }));
+    if (msg) msg.innerHTML = antes;
+  } catch (e) {
+    console.error(e);
+    if (msg) msg.innerHTML = antes;
+    toast('Não consegui gravar o PDF: ' + (e && e.message ? e.message : e) + '. Use “Imprimir” → “Salvar como PDF”.');
+  } finally { botoes.forEach(b => b.disabled = false); }
+}
 // prévia viva
 let PREV = { on: false, t: null };
 function abrirPreviaViva() {
@@ -4206,7 +4619,7 @@ async function colabEntrar(pid) {
   try {
     const atual = await B.get(`projetos/${pid}/membros/${me}`).catch(() => null);
     if (atual && atual.removido) throw new Error('Você foi removido da equipe deste PPC. Fale com quem o criou.');
-    await B.update(`projetos/${pid}/membros/${me}`, { nome: CO.user.nome, email: CO.user.email });
+    await B.update(`projetos/${pid}/membros/${me}`, { nome: CO.user.nome, email: CO.user.email, visto: B.agora() });
     const meta = await B.get(`projetos/${pid}/meta`);
     if (!meta) throw new Error('PPC não encontrado');
     if (geradorDe(meta) !== ADAPT.gerador) throw new Error({ tecnico: 'Este PPC foi compartilhado no gerador dos cursos técnicos. Abra o link no gerador de PPC dos cursos técnicos.', parecer: 'Este documento foi compartilhado na Câmara de Ensino, no gerador de parecer. Abra-o pela área da Câmara.' }[geradorDe(meta)] || 'Este PPC foi compartilhado no gerador dos cursos de graduação. Abra o link no gerador de PPC da graduação.');
@@ -4215,7 +4628,9 @@ async function colabEntrar(pid) {
     CO.pid = null; CO.carregando = false; history.replaceState(null, '', location.pathname + location.search);
     return modal(`<h3>Não foi possível abrir este PPC</h3><p>O link pode estar incompleto, o PPC foi apagado ou você foi removido da equipe. Confira com quem enviou o link.</p><p class="muted" style="font-size:12px">${h(e.message || String(e))}</p><div class="row" style="justify-content:flex-end"><button data-mact="cancelar">Fechar</button></div>`);
   }
-  B.update(`projetos/${pid}/membros/${me}`, { nome: CO.user.nome }).catch(() => { });
+  B.update(`projetos/${pid}/membros/${me}`, { nome: CO.user.nome, visto: B.agora() }).catch(() => { });
+  clearInterval(CO.visto);
+  CO.visto = setInterval(() => { if (CO.pid === pid && CO.B && CO.user) CO.B.update(`projetos/${pid}/membros/${me}`, { visto: CO.B.agora() }).catch(() => { }); }, 120000);
   history.replaceState(null, '', location.pathname + location.search + '#ppc=' + pid);
   CO.unsub.push(B.listen(`projetos/${pid}/dados`, v => colabRecebe(v)));
   CO.unsub.push(B.listen(`projetos/${pid}/membros`, v => { CO.membros = v || {}; if ($('#modal.on .colab')) colabAbrir(); }));
@@ -4225,6 +4640,8 @@ async function colabEntrar(pid) {
   modal('');
 }
 function colabSair(silencioso) {
+  clearInterval(CO.visto);
+  if (CO.pid && CO.B && CO.user) { try { CO.B.update(`projetos/${CO.pid}/membros/${chaveEmail(CO.user.email)}`, { visto: CO.B.agora() }); } catch (e) { } }
   CO.unsub.forEach(f => { try { f && f(); } catch (e) { } }); CO.unsub = [];
   if (CO.pid && CO.B && CO.user) { try { CO.B.set(`presenca/${CO.pid}/${CO.user.uid}`, null); } catch (e) { } }
   CO.pid = null; CO.ultimo = null; CO.pres = {}; CO.membros = {}; clearTimeout(CO.timer);
@@ -4362,7 +4779,7 @@ async function colabAbrir() {
         <tr><td class="muted">Compartilhado em</td><td>${h(fmtQuando(CO.meta && CO.meta.criado))}</td></tr>
         <tr><td class="muted">Esta cópia na sua tela</td><td>${h(fmtQuando(P && P.meta && P.meta.atualizado ? Date.parse(P.meta.atualizado) : 0))}</td></tr>
       </tbody></table>
-      <table class="t"><thead><tr><th>Membro</th><th style="width:110px">Situação</th>${CO.dono ? '<th style="width:70px"></th>' : ''}</tr></thead><tbody>${mem.map(([k, x]) => `<tr><td><b>${h(x.nome || emailDe(k))}</b><div class="muted" style="font-size:12px">${h(emailDe(k))}${x.papel === 'dono' ? ' · criou o PPC' : ''}</div></td><td>${on.has(k) ? '<span style="color:#0f8f92;font-weight:700">● on-line</span>' : '<span class="muted">fora</span>'}</td>${CO.dono ? `<td>${x.papel === 'dono' ? '' : `<button class="sm ghost" data-colab="remover" data-k="${h(k)}">Remover</button>`}</td>` : ''}</tr>`).join('')}</tbody></table>
+      <table class="t"><thead><tr><th>Membro</th><th style="width:110px">Situação</th><th style="width:170px">Último acesso</th>${CO.dono ? '<th style="width:70px"></th>' : ''}</tr></thead><tbody>${mem.map(([k, x]) => `<tr><td><b>${h(x.nome || emailDe(k))}</b><div class="muted" style="font-size:12px">${h(emailDe(k))}${x.papel === 'dono' ? ' · criou o PPC' : ''}</div></td><td>${on.has(k) ? '<span style="color:#0f8f92;font-weight:700">● on-line</span>' : '<span class="muted">fora</span>'}</td><td>${on.has(k) ? '<span class="muted">agora</span>' : x.visto ? h(fmtQuando(x.visto)) : '<span class="muted">—</span>'}</td>${CO.dono ? `<td>${x.papel === 'dono' ? '' : `<button class="sm ghost" data-colab="remover" data-k="${h(k)}">Remover</button>`}</td>` : ''}</tr>`).join('')}</tbody></table>
       <div class="flabel">Link do PPC para a equipe</div><div class="row" style="gap:8px"><input id="colabLink" value="${h(link)}" readonly style="flex:1"><button data-colab="copiar">Copiar</button></div>
       <p class="muted" style="font-size:12.5px">Envie este link para os colegas (por e-mail ou WhatsApp). Quem abre o link e entra com a conta Google passa a fazer parte da equipe deste PPC e já cai nele. Só quem tem o link entra. Se alguém não deveria estar na equipe, use “Remover”: a pessoa perde o acesso, mesmo tendo o link.</p>
       <div class="flabel">Seus ${(ADAPT.termo || 'PPC') === 'parecer' ? 'pareceres' : 'PPCs'} compartilhados <span class="muted" style="font-weight:400">clique em <b>Abrir</b> para passar a outro; o desta tela já está gravado na nuvem</span></div>
@@ -4707,6 +5124,15 @@ function horTurmaLivre(id) {
   return 'T1';
 }
 const horCel = k => (P.horario && Array.isArray(P.horario[k])) ? P.horario[k] : [];
+// só disciplinas práticas e teórico-práticas podem dividir o mesmo horário (laboratórios em paralelo)
+const horPratica = d => d && (G.carater(d) === 'P' || G.carater(d) === 'TP');
+// duas ou mais disciplinas no mesmo tempo = turmas diferentes da mesma classe: T1, T2, …
+function horNumeraCelula(k) {
+  const a = horCel(k); if (!a.length) return;
+  if (a.length === 1) { a[0] = { id: a[0].id, t: (+((P.disciplinas.find(d => d.id === a[0].id) || {}).turmas) > 1) ? (a[0].t || 'T1') : '' }; }
+  else a.forEach((x, i) => { x.t = 'T' + (i + 1); });
+  P.horario[k] = a;
+}
 const horSemanas = () => +P.id.semanasPeriodo || 20;
 // quantas aulas por semana a carga horária da disciplina pede
 const horAulas = d => Math.max(0, Math.round(G.haDisc(d) / horSemanas()));
@@ -4744,7 +5170,8 @@ function horCartao(x, k, num) {
   const [bg, bd] = corCartao(d), ha = G.haDisc(d);
   const ie = P.eixos.findIndex(e => e.id === d.eixoId);
   const nt = Math.max(1, Math.min(4, +d.turmas || 1));
-  return `<div class="hcard" draggable="true" data-hc="${d.id}" data-hk="${k || ''}" data-ht="${h(x.t || '')}" style="background:${bg};border-color:${bd}"
+  const sel = HSEL && k && HSEL.k === k && HSEL.id === d.id && (HSEL.t || '') === (x.t || '');
+  return `<div class="hcard${sel ? ' sel' : ''}" draggable="true" data-hc="${d.id}" data-hk="${k || ''}" data-ht="${h(x.t || '')}" style="background:${bg};border-color:${bd}"
     title="${h(`${d.nome}\n${num.get(d.id) || ''} · ${ha} h/a (${G.fmtH(G.ha2h(ha, P.id.minutosHA))} h) · ${G.ROT_CARATER[G.carater(d)]}${ie >= 0 ? '\nEixo ' + (ie + 1) + ' – ' + (P.eixos[ie].nome || '') : '\nSem eixo'}${d.optativa ? '\nOptativa' : ''}\nArraste para outro dia ou horário; clique duas vezes para abrir a disciplina.`)}">
     <b>${h(d.nome || '(sem nome)')}</b>
     <span class="hmeta"><span class="htag">${h(num.get(d.id) || '–')}</span>${d.optativa ? '<span class="htag op">op</span>' : ''}<span class="htag">${G.tp(d)}</span>${k && nt > 1 ? `<span class="htag tur" data-htur="${k}" title="Clique para trocar a turma (a parte prática desta disciplina tem ${nt} turmas)">${h(x.t || 'turma?')}</span>` : x.t ? `<span class="htag tur">${h(x.t)}</span>` : ''}</span>
@@ -4755,7 +5182,7 @@ function horGradeHTML(periodo, num) {
     const cels = HOR_DIAS.map((_, di) => {
       const k = horChave(periodo, di, si), itens = horCel(k);
       const rep = itens.length > 1 && new Set(itens.map(x => x.id + '|' + (x.t || ''))).size < itens.length;
-      return `<td class="hcel${s.opt ? ' hopt' : ''}${rep ? ' hconf' : itens.length > 1 ? ' hmulti' : ''}" data-hdrop="${k}"${itens.length > 1 ? ` title="${itens.length} disciplinas no mesmo horário (laboratórios/turmas diferentes)"` : ''}>${itens.map(x => horCartao(x, k, num)).join('')}</td>`;
+      return `<td class="hcel${s.opt ? ' hopt' : ''}${rep ? ' hconf' : itens.length > 1 ? ' hmulti' : ''}" data-hdrop="${k}"${itens.length > 1 ? ` title="${itens.length} disciplinas no mesmo horário: turmas diferentes da classe, em laboratórios diferentes"` : ''}><div class="hcelin">${itens.map(x => horCartao(x, k, num)).join('')}</div></td>`;
     }).join('');
     return `<tr><th class="hhora${s.opt ? ' hopt' : ''}">${s.ini}<br>${s.fim}${s.opt ? '<br><span class="hopttag">optativas</span>' : ''}</th>${cels}</tr>`;
   }).join('');
@@ -4798,12 +5225,45 @@ function vHorario() {
     <p class="g">As aulas previstas por semana saem da carga horária de cada disciplina dividida pelas semanas letivas.</p>
     <div class="row" style="gap:8px;margin:6px 0 4px"><span class="muted" style="font-size:13px">Cores:</span><button class="sm${HOR.cor === 'disc' ? ' pri' : ' ghost'}" data-act="horCor" data-v="disc">uma por disciplina</button><button class="sm${HOR.cor === 'eixo' ? ' pri' : ' ghost'}" data-act="horCor" data-v="eixo">por eixo</button></div>
     <div class="mleglist base">${leg}</div></div>
-    <div class="row" style="gap:8px;margin:0 0 12px"><button class="sm ghost" data-act="horFecharTodos">Recolher todos os períodos</button><button class="sm ghost" data-act="horAbrirTodos">Expandir todos</button></div>
+    <div class="row" style="gap:8px;margin:0 0 12px"><button class="sm ghost" data-act="horFecharTodos">Recolher todos os períodos</button><button class="sm ghost" data-act="horAbrirTodos">Expandir todos</button><span style="flex:1"></span>${btnDesfazer()}</div>
+    <p class="g" style="margin:-6px 0 12px">Clique num cartão da grade para selecioná-lo e tecle <b>Delete</b> para devolvê-lo a “A distribuir”. <b>Ctrl+Z</b> desfaz, <b>Ctrl+Shift+Z</b> refaz.</p>
     ${grades}
     <div class="row" style="gap:8px"><button class="sm ghost" data-act="horLimpar">Limpar o horário inteiro</button><button class="sm" data-act="gXlsx">Baixar a planilha (.xlsx)</button></div>`;
 }
+// ---- desfazer / refazer (horário e matriz curricular) ----
+const UNDO = { pilha: [], refazer: [] };
+const estadoAtual = () => JSON.stringify({ h: P.horario || {}, p: P.disciplinas.map(d => [d.id, +d.periodo || 1]) });
+function guardaEstado() { UNDO.pilha.push(estadoAtual()); if (UNDO.pilha.length > 40) UNDO.pilha.shift(); UNDO.refazer.length = 0; }
+function aplicaEstado(txt) {
+  const e = JSON.parse(txt);
+  P.horario = e.h || {};
+  const mp = new Map(e.p); P.disciplinas.forEach(d => { if (mp.has(d.id)) d.periodo = mp.get(d.id); });
+}
+function desfazer() {
+  if (!UNDO.pilha.length) { toast('Nada para desfazer.'); return; }
+  UNDO.refazer.push(estadoAtual()); aplicaEstado(UNDO.pilha.pop()); touch(true); toast('Desfeito.');
+}
+function refazer() {
+  if (!UNDO.refazer.length) { toast('Nada para refazer.'); return; }
+  UNDO.pilha.push(estadoAtual()); aplicaEstado(UNDO.refazer.pop()); touch(true); toast('Refeito.');
+}
+document.addEventListener('keydown', ev => {
+  const alvo = ev.target, edit = alvo && (alvo.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(alvo.tagName));
+  if ((ev.ctrlKey || ev.metaKey) && (ev.key === 'z' || ev.key === 'Z')) {
+    if (edit) return;
+    ev.preventDefault(); if (ev.shiftKey) refazer(); else desfazer(); return;
+  }
+  if ((ev.ctrlKey || ev.metaKey) && (ev.key === 'y' || ev.key === 'Y')) { if (edit) return; ev.preventDefault(); refazer(); return; }
+  if ((ev.key === 'Delete' || ev.key === 'Backspace') && HSEL && !edit) {
+    ev.preventDefault();
+    guardaEstado();
+    const a = horCel(HSEL.k), i = a.findIndex(x => x.id === HSEL.id && (x.t || '') === (HSEL.t || ''));
+    if (i >= 0) { a.splice(i, 1); if (!a.length) delete P.horario[HSEL.k]; else { P.horario[HSEL.k] = a; horNumeraCelula(HSEL.k); } }
+    HSEL = null; touch(true); toast('Aula devolvida para “A distribuir”.');
+  }
+});
 // arrastar e soltar na grade
-let HDRAG = null, HARRASTOU = false;
+let HDRAG = null, HARRASTOU = false, HSEL = null;
 document.addEventListener('dragstart', ev => {
   const c = ev.target.closest && ev.target.closest('[data-hc]'); if (!c) return;
   HDRAG = { id: c.dataset.hc, de: c.dataset.hk || '', t: c.dataset.ht || '' }; HARRASTOU = true;
@@ -4822,7 +5282,18 @@ document.addEventListener('drop', ev => {
   const { id, de, t } = HDRAG; HDRAG = null;
   const para = c.dataset.hdrop;
   if (para === de) return;
-  horMover(id, de, para, de ? t : horTurmaLivre(id), t);
+  const d = P.disciplinas.find(x => x.id === id);
+  const ocupada = para ? horCel(para).filter(x => !(x.id === id && (x.t || '') === (t || ''))) : [];
+  if (ocupada.length) {
+    const todas = [d].concat(ocupada.map(x => P.disciplinas.find(y => y.id === x.id)));
+    if (!todas.every(horPratica)) { toast('No mesmo horário só podem ficar juntas disciplinas práticas ou teórico-práticas (laboratórios em paralelo).'); return; }
+    if (todas.length > 4) { toast('No máximo quatro turmas no mesmo horário.'); return; }
+  }
+  guardaEstado();
+  horMover(id, de, para, t, t);
+  if (de) horNumeraCelula(de);
+  if (para) horNumeraCelula(para);
+  HSEL = null;
   touch(true);
 });
 document.addEventListener('click', ev => {
@@ -4831,12 +5302,20 @@ document.addEventListener('click', ev => {
   const c = b.closest('[data-hc]'), k = b.dataset.htur, id = c.dataset.hc, atual = c.dataset.ht || '';
   const d = P.disciplinas.find(y => y.id === id), nt = Math.max(1, Math.min(4, +(d && d.turmas) || 1));
   const a = horCel(k), i = a.findIndex(x => x.id === id && (x.t || '') === atual); if (i < 0) return;
+  guardaEstado();
   const n = atual ? (+atual.replace(/\D/g, '') || 0) : 0;
   const ocupadas = new Set(a.filter((x, j) => j !== i && x.id === id).map(x => x.t || ''));
   let prox = n;
   for (let k = 0; k < nt; k++) { prox = prox >= nt ? 1 : prox + 1; if (!ocupadas.has('T' + prox)) break; }
   a[i] = { id, t: 'T' + prox };
   P.horario[k] = a; touch(true);
+});
+document.addEventListener('click', ev => {
+  const c = ev.target.closest && ev.target.closest('.hcard[data-hk]');
+  if (!c || !c.dataset.hk) { if (HSEL && !ev.target.closest('[data-htur]')) { HSEL = null; $$('.hcard.sel').forEach(x => x.classList.remove('sel')); } return; }
+  if (ev.target.closest('[data-htur]')) return;
+  HSEL = { k: c.dataset.hk, id: c.dataset.hc, t: c.dataset.ht || '' };
+  $$('.hcard.sel').forEach(x => x.classList.remove('sel')); c.classList.add('sel');
 });
 document.addEventListener('dblclick', ev => {
   const c = ev.target.closest && ev.target.closest('[data-hc]'); if (!c) return;
@@ -5035,6 +5514,212 @@ async function infImportarArquivo(file) {
 function infModelo() {
   const lab = ['Laboratório - 402 - LEP\tEletrônica de potência', 'Bancadas\t5', 'Disciplinas\tConversão da Energia; Máquinas Elétricas', '', 'Equipamento / material\tQtde', 'Osciloscópio de 100 MHz, 4 canais\t5', 'Multímetro True RMS\t5'].join('\n');
   baixar('modelo-infraestrutura.txt', 'Monte na planilha uma aba por ambiente, no formato abaixo (uma coluna por tabulação).\nO nome da aba é o número da sala.\n\n' + lab + '\n', 'text/plain;charset=utf-8');
+}
+
+// ---------- Atividades da comissão: o presidente atribui, o membro resolve, o presidente confirma ----------
+const TAR = { quem: '' };       // quem está usando o gerador nesta tela (id do membro)
+try { TAR.quem = localStorage.getItem('ppcg-eu') || ''; } catch (e) { }
+
+const comissao = () => ((P.id.comissoes && P.id.comissoes.elab && P.id.comissoes.elab.membros) || []).filter(m => (m.nome || '').trim());
+const membroPor = id => comissao().find(m => m.id === id) || null;
+const nomeMembro = id => { const m = membroPor(id); return m ? m.nome : ''; };
+const souPresidente = () => !!P.presidente && TAR.quem === P.presidente;
+// com a Equipe ligada, o nome de quem está conectado identifica quem agiu
+const quemAgora = () => {
+  const m = membroPor(TAR.quem);
+  if (m) return m.nome;
+  try { if (typeof CO !== 'undefined' && CO.user && CO.user.nome) return CO.user.nome; } catch (e) { }
+  return '';
+};
+// tenta reconhecer o usuário da Equipe entre os membros da comissão
+function tarAutoQuem() {
+  if (TAR.quem && membroPor(TAR.quem)) return;
+  let nome = '';
+  try { nome = (typeof CO !== 'undefined' && CO.user && CO.user.nome) || ''; } catch (e) { }
+  if (!nome) return;
+  const m = comissao().find(x => G.norm(x.nome) === G.norm(nome));
+  if (m) { TAR.quem = m.id; try { localStorage.setItem('ppcg-eu', m.id); } catch (e) { } }
+}
+const DIA = 86400000;
+const dataHora = iso => { if (!iso) return '—'; const d = new Date(iso); return isNaN(d) ? '—' : d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); };
+function duracao(ms) {
+  if (!(ms > 0)) return 'menos de 1 min';
+  const d = Math.floor(ms / DIA), h = Math.floor(ms % DIA / 3600000), m = Math.floor(ms % 3600000 / 60000);
+  if (d) return `${d} dia${d > 1 ? 's' : ''}${h ? ` e ${h} h` : ''}`;
+  if (h) return `${h} h${m ? ` ${m} min` : ''}`;
+  return `${m} min`;
+}
+// situação de uma atividade: aberta, resolvida (à espera do presidente) ou confirmada
+function tarSituacao(t) {
+  const ini = Date.parse(t.criadoEm) || 0;
+  if (t.confirmadoEm) {
+    const fim = Date.parse(t.resolvidoEm || t.confirmadoEm) || 0;      // conta até o clique do membro
+    return { k: 'ok', rot: 'Concluída', ms: Math.max(0, fim - ini), fim };
+  }
+  const agora = Date.now();
+  if (t.resolvidoEm) return { k: 'aguarda', rot: 'Resolvida — aguarda o presidente', ms: Math.max(0, agora - ini), msMembro: Math.max(0, (Date.parse(t.resolvidoEm) || 0) - ini) };
+  return { k: 'aberta', rot: 'Em aberto', ms: Math.max(0, agora - ini) };
+}
+const tarAtrasada = t => { const s = tarSituacao(t); return s.k !== 'ok' && t.prazo && Date.now() > Date.parse(t.prazo + 'T23:59:59'); };
+
+function tarCardHTML() {
+  tarAutoQuem();
+  const mem = comissao();
+  if (!mem.length) return `<div class="card"><div class="row"><h3 style="flex:1">Atividades da comissão</h3></div>
+    <p class="muted">Cadastre os membros da <b>comissão de elaboração</b> na etapa <a href="#" data-step="ident">Identificação e capa</a>. Depois, o presidente distribui aqui as atividades do PPC e todos acompanham o que falta.</p></div>`;
+  const ts = (P.tarefas || []).slice().sort((a, b) => {
+    const sa = tarSituacao(a), sb = tarSituacao(b);
+    const o = { aberta: 0, aguarda: 1, ok: 2 };
+    return (o[sa.k] - o[sb.k]) || (Date.parse(a.criadoEm) || 0) - (Date.parse(b.criadoEm) || 0);
+  });
+  const abertas = ts.filter(t => tarSituacao(t).k === 'aberta').length;
+  const aguarda = ts.filter(t => tarSituacao(t).k === 'aguarda').length;
+  const prontas = ts.filter(t => tarSituacao(t).k === 'ok').length;
+  const pres = souPresidente();
+  const selEu = `<select data-tarq title="Quem está usando o gerador agora"><option value="">quem é você?</option>${mem.map(m => `<option value="${m.id}"${TAR.quem === m.id ? ' selected' : ''}>${h(m.nome)}</option>`).join('')}</select>`;
+  const selPres = `<select data-tarpres title="Quem preside a comissão"><option value="">definir presidente…</option>${mem.map(m => `<option value="${m.id}"${P.presidente === m.id ? ' selected' : ''}>${h(m.nome)}</option>`).join('')}</select>`;
+  const linha = t => {
+    const s = tarSituacao(t), meu = t.para === TAR.quem, atraso = tarAtrasada(t);
+    const acoes = s.k === 'ok'
+      ? (pres ? `<button class="sm ghost" data-tar="reabrir" data-id="${t.id}" title="Volta a atividade para em aberto">Reabrir</button>` : '')
+      : s.k === 'aguarda'
+        ? (pres ? `<button class="sm pri" data-tar="confirmar" data-id="${t.id}">Confirmar resolução</button>` : `<span class="muted">aguardando o presidente</span>`)
+        : (meu || pres ? `<button class="sm" data-tar="resolver" data-id="${t.id}">${meu ? 'Resolvi' : 'Marcar como resolvida'}</button>` : '');
+    const tempo = s.k === 'ok'
+      ? `<b style="color:var(--ok)">${duracao(s.ms)}</b><div class="muted" style="font-size:11.5px">até ${dataHora(t.resolvidoEm || t.confirmadoEm)}</div>`
+      : s.k === 'aguarda'
+        ? `<b style="color:#b26a00">${duracao(s.ms)}</b><div class="muted" style="font-size:11.5px">o membro resolveu em ${duracao(s.msMembro)}; o relógio só para na confirmação</div>`
+        : `<b style="color:${atraso ? 'var(--err)' : '#b26a00'}">${duracao(s.ms)}</b><div class="muted" style="font-size:11.5px">${atraso ? 'fora do prazo (' + dataHora(t.prazo + 'T12:00') .slice(0, 10) + ')' : 'contando desde a atribuição'}</div>`;
+    return `<tr class="${s.k === 'ok' ? 'tarok' : atraso ? 'taratraso' : ''}">
+      <td><b>${h(t.paraNome || nomeMembro(t.para) || '—')}</b>${meu ? ' <span class="tag">você</span>' : ''}</td>
+      <td><b>${h(t.titulo || 'Atividade')}</b>${t.descricao ? `<div class="muted" style="font-size:12px">${h(t.descricao)}</div>` : ''}${t.passo ? `<div style="font-size:12px"><a href="#" data-step="${h(t.passo)}">abrir a etapa</a></div>` : ''}</td>
+      <td style="white-space:nowrap">${dataHora(t.criadoEm)}<div class="muted" style="font-size:11.5px">${t.criadoPor ? 'por ' + h(t.criadoPor) : ''}</div></td>
+      <td>${s.rot}</td><td style="min-width:150px">${tempo}</td>
+      <td style="white-space:nowrap">${acoes}${pres ? ` <button class="sm ghost" data-tar="excluir" data-id="${t.id}" title="Excluir a atividade">✕</button>` : ''}</td></tr>`;
+  };
+  return `<div class="card tarcard">
+    <div class="row"><h3 style="flex:1">Atividades da comissão <span class="muted" style="font-weight:400">${ts.length} atribuída(s)</span></h3>
+      <span class="muted" style="font-size:12.5px">Você é</span>${selEu}<span class="muted" style="font-size:12.5px">Presidente</span>${selPres}</div>
+    <div class="sum" style="margin:4px 0 12px">
+      <div class="kpi ${abertas ? 'bad' : 'good'}"><div class="l">Em aberto</div><div class="v">${abertas}</div></div>
+      <div class="kpi"><div class="l">Aguardando o presidente</div><div class="v">${aguarda}</div></div>
+      <div class="kpi good"><div class="l">Concluídas</div><div class="v">${prontas}</div></div>
+    </div>
+    ${ts.length ? `<div class="rolax"><table class="t"><thead><tr><th style="width:170px">Responsável</th><th>Atividade</th><th style="width:135px">Atribuída em</th><th style="width:150px">Situação</th><th style="width:170px">Tempo</th><th style="width:150px"></th></tr></thead><tbody>${ts.map(linha).join('')}</tbody></table></div>`
+      : '<p class="muted">Nenhuma atividade atribuída ainda. Use o botão <b>Atribuir</b> ao lado de cada pendência abaixo, ou o botão à direita.</p>'}
+    <div class="row" style="gap:8px;margin-top:10px">
+      ${pres || !P.presidente ? '<button class="pri" data-tar="nova">+ Atribuir atividade</button>' : ''}
+      <button class="sm" data-tar="relatorio">Relatório de atividades (PDF)</button>
+      <span style="flex:1"></span>
+      <span class="muted" style="font-size:12px">O relógio de cada atividade só para quando o presidente confirma, mas o tempo registrado é o do clique do membro.</span>
+    </div></div>`;
+}
+
+// modal de atribuição; iss = pendência de origem (opcional)
+function tarNova(iss) {
+  const mem = comissao();
+  if (!mem.length) { toast('Cadastre antes os membros da comissão de elaboração, na etapa Identificação.'); return; }
+  const tit = iss ? iss.msg : '';
+  const passo = iss ? (passoDe(iss) || '') : '';
+  const hoje = new Date(Date.now() + 14 * DIA).toISOString().slice(0, 10);
+  modal(`<h3>Atribuir atividade</h3>
+    <label class="f"><span>Responsável</span><select id="tarPara">${mem.map(m => `<option value="${m.id}">${h(m.nome)}${m.funcao ? ' – ' + h(m.funcao) : ''}</option>`).join('')}</select></label>
+    <label class="f"><span>Atividade</span><input id="tarTit" value="${h(tit)}" placeholder="Ex.: escrever a seção 4.3 – Metodologia de ensino"></label>
+    <label class="f"><span>Observações (opcional)</span><textarea id="tarDesc" rows="3" placeholder="O que precisa ser feito, onde buscar a informação, com quem falar."></textarea></label>
+    <div class="grid">
+      <label class="f"><span>Etapa do gerador</span><select id="tarPasso"><option value="">nenhuma</option>${STEPS.map(([k, n]) => `<option value="${k}"${passo === k ? ' selected' : ''}>${h(n)}</option>`).join('')}</select></label>
+      <label class="f"><span>Prazo</span><input type="date" id="tarPrazo" value="${hoje}"></label>
+    </div>
+    <p class="muted" style="font-size:12.5px">A data e a hora da atribuição ficam registradas agora. A contagem de tempo começa neste instante e só para quando o presidente confirmar a resolução.</p>
+    <div class="row" style="justify-content:flex-end;gap:8px"><button data-fechar>Cancelar</button><button class="pri" data-tar="salvar">Atribuir</button></div>`);
+  setTimeout(() => { const el = $('#tarTit'); if (el) el.focus(); }, 60);
+}
+function tarSalvar() {
+  const para = $('#tarPara').value, titulo = $('#tarTit').value.trim();
+  if (!titulo) { toast('Escreva qual é a atividade.'); return; }
+  P.tarefas.push({
+    id: G.uid(), para, paraNome: nomeMembro(para), titulo,
+    descricao: $('#tarDesc').value.trim(), passo: $('#tarPasso').value, prazo: $('#tarPrazo').value,
+    criadoEm: new Date().toISOString(), criadoPor: quemAgora() || nomeMembro(P.presidente) || 'presidente da comissão',
+    resolvidoEm: '', resolvidoPor: '', confirmadoEm: '', confirmadoPor: ''
+  });
+  modal(''); touch(true);
+  toast(`Atividade atribuída a ${nomeMembro(para)}.`);
+}
+function tarAcao(acao, id) {
+  const t = (P.tarefas || []).find(x => x.id === id); if (!t) return;
+  if (acao === 'resolver') {
+    t.resolvidoEm = new Date().toISOString(); t.resolvidoPor = quemAgora() || t.paraNome;
+    touch(true); toast('Marcada como resolvida. O presidente precisa confirmar para parar a contagem.'); return;
+  }
+  if (acao === 'confirmar') {
+    if (!t.resolvidoEm) { t.resolvidoEm = new Date().toISOString(); t.resolvidoPor = quemAgora(); }
+    t.confirmadoEm = new Date().toISOString(); t.confirmadoPor = quemAgora() || 'presidente';
+    touch(true); toast(`Concluída em ${duracao(tarSituacao(t).ms)}.`); return;
+  }
+  if (acao === 'reabrir') { t.resolvidoEm = ''; t.resolvidoPor = ''; t.confirmadoEm = ''; t.confirmadoPor = ''; touch(true); toast('Atividade reaberta.'); return; }
+  if (acao === 'excluir') {
+    if (!confirmar('tx' + id, 'Excluir esta atividade? Clique de novo para confirmar.')) return;
+    P.tarefas = P.tarefas.filter(x => x.id !== id); touch(true); return;
+  }
+}
+
+// ---------- relatório em PDF ----------
+function tarRelatorioHTML() {
+  const I = P.id, mem = comissao(), ts = (P.tarefas || []).slice();
+  const porMembro = mem.map(m => ({ m, lista: ts.filter(t => t.para === m.id) }));
+  const soltas = ts.filter(t => !mem.some(m => m.id === t.para));
+  if (soltas.length) porMembro.push({ m: { nome: 'Sem responsável na comissão', funcao: '' }, lista: soltas });
+  const st = t => tarSituacao(t);
+  const tot = { ab: ts.filter(t => st(t).k === 'aberta').length, ag: ts.filter(t => st(t).k === 'aguarda').length, ok: ts.filter(t => st(t).k === 'ok').length };
+  const concl = ts.filter(t => st(t).k === 'ok');
+  const medio = concl.length ? concl.reduce((a, t) => a + st(t).ms, 0) / concl.length : 0;
+  const lin = t => {
+    const s = st(t);
+    return `<tr><td>${h(t.titulo)}${t.descricao ? `<div class="o">${h(t.descricao)}</div>` : ''}</td>
+      <td class="c">${dataHora(t.criadoEm)}</td>
+      <td class="c">${t.resolvidoEm ? dataHora(t.resolvidoEm) : '—'}</td>
+      <td class="c">${t.confirmadoEm ? dataHora(t.confirmadoEm) : '—'}</td>
+      <td class="c">${s.rot}</td>
+      <td class="c">${duracao(s.ms)}${tarAtrasada(t) ? '<div class="o">fora do prazo</div>' : ''}</td></tr>`;
+  };
+  const corpo = `<h1>Relatório de atividades da comissão</h1>
+    <table class="id"><tbody>
+      <tr><th>Curso</th><td>${h(I.curso || '—')}${I.grau ? ' (' + h(I.grau) + ')' : ''}</td></tr>
+      <tr><th>Instituição</th><td>${h(I.instituicao || '')}${I.campus ? ' – Campus ' + h(I.campus) : ''}</td></tr>
+      <tr><th>Projeto</th><td>${I.tipo === 'reestruturacao' ? 'Reestruturação' : 'Implantação'}${I.versao ? ' – versão ' + h(I.versao) : ''}</td></tr>
+      <tr><th>Presidente da comissão</th><td>${h(nomeMembro(P.presidente) || '—')}</td></tr>
+      <tr><th>Portaria da comissão</th><td>${h((P.id.comissoes.elab && P.id.comissoes.elab.portaria) || '—')}</td></tr>
+      <tr><th>Emitido em</th><td>${dataHora(new Date().toISOString())}</td></tr>
+    </tbody></table>
+    <div class="kpis"><div><b>${ts.length}</b><span>atividades</span></div><div><b>${tot.ab}</b><span>em aberto</span></div><div><b>${tot.ag}</b><span>aguardando confirmação</span></div><div><b>${tot.ok}</b><span>concluídas</span></div><div><b>${concl.length ? duracao(medio) : '—'}</b><span>tempo médio de resolução</span></div></div>
+    ${porMembro.filter(x => x.lista.length).map(x => `<h2>${h(x.m.nome)}${x.m.funcao ? ' <span class="fn">' + h(x.m.funcao) + '</span>' : ''}</h2>
+      <table class="q"><thead><tr><th>Atividade</th><th class="c">Atribuída em</th><th class="c">Resolvida em</th><th class="c">Confirmada em</th><th class="c">Situação</th><th class="c">Tempo</th></tr></thead>
+      <tbody>${x.lista.map(lin).join('')}</tbody></table>
+      <p class="res">${x.lista.filter(t => st(t).k === 'ok').length} concluída(s) de ${x.lista.length}.</p>`).join('') || '<p>Nenhuma atividade atribuída.</p>'}
+    <p class="nota">O tempo de cada atividade é contado da atribuição pelo presidente até o momento em que o membro a marcou como resolvida. Enquanto o presidente não confirma, a contagem continua correndo.</p>`;
+  const css = `h1{font-size:15pt;margin:0 0 10pt;text-align:center}
+    h2{font-size:11.5pt;margin:14pt 0 5pt;padding-bottom:2pt;border-bottom:1pt solid #c9d3da;break-after:avoid}
+    h2 .fn{font-weight:400;color:#64748b;font-size:9.5pt}
+    table{border-collapse:collapse;width:100%;font-size:9pt;margin-bottom:4pt}
+    table.id{margin-bottom:10pt}
+    table.id th{width:28%;text-align:left;background:#f1f5f7;border:0.5pt solid #c9d3da;padding:2.5pt 5pt;font-size:9pt}
+    table.id td{border:0.5pt solid #c9d3da;padding:2.5pt 5pt}
+    table.q th{background:#e8eef2;border:0.5pt solid #c9d3da;padding:3pt 5pt;font-size:8.5pt}
+    table.q td{border:0.5pt solid #c9d3da;padding:3pt 5pt;vertical-align:top}
+    .c{text-align:center}
+    .o{color:#64748b;font-size:8pt}
+    .kpis{display:flex;gap:8pt;margin:0 0 12pt}
+    .kpis div{flex:1;border:0.5pt solid #c9d3da;border-radius:3pt;padding:5pt;text-align:center}
+    .kpis b{display:block;font-size:13pt}
+    .kpis span{font-size:7.5pt;color:#475569}
+    .res{font-size:8.5pt;color:#475569;margin:0 0 6pt}
+    .nota{font-size:8.5pt;color:#475569;margin-top:14pt;border-top:0.5pt solid #c9d3da;padding-top:5pt}`;
+  return PPC_PDF.documento({ titulo: nomeBase('Relatorio-de-atividades'), corpo, css, cab: `Projeto Pedagógico do Curso de ${P.id.curso || 'Curso'}`, logo: (P.id.logo && P.id.logo.dataURL) || (window.PPC_LOGO && PPC_LOGO.dataURL) || '', rodape: rodapeLinhas() });
+}
+function tarRelatorio() {
+  try { abrirPrevia(tarRelatorioHTML(), 'Relatório de atividades da comissão', '', nomeBase('Relatorio-de-atividades')); }
+  catch (e) { console.error(e); toast('Erro ao montar o relatório: ' + e.message); }
 }
 
 // início: sempre em branco; rascunho anterior guardado para retomar

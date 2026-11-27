@@ -289,6 +289,27 @@ table.t.qeixo .c{text-align:center}
 .card.eixofech .row{margin:0}
 .ebtn{min-width:28px;font-size:15px;line-height:1;padding:3px 7px}
 table.t.qeixo{min-width:1040px}
+/* ---------- grade de horário ---------- */
+table.t.hgrade{min-width:920px;table-layout:fixed}
+table.t.hgrade th{text-align:center;background:#f2f5f9;color:var(--acc);font-size:11px}
+table.t.hgrade td{border:1px solid #e4e9f0;vertical-align:top;padding:3px}
+.hhora{font-size:11px;font-weight:700;color:var(--mut);background:#fafbfc;text-align:center;white-space:nowrap}
+.hhora.hopt,td.hopt{background:#fffdf3}
+.hopttag{font-weight:400;font-size:9.5px;color:#9a7b00;text-transform:none;letter-spacing:0}
+.hcel{height:52px;transition:background .12s}
+.hcel.over{background:#e3f2fd;outline:2px dashed var(--acc2);outline-offset:-3px}
+.hcel.hconf{box-shadow:inset 0 0 0 2px #f3b4ae}
+.hcard{border:1px solid;border-left-width:4px;border-radius:6px;padding:3px 6px;margin-bottom:3px;cursor:grab;font-size:11.5px;line-height:1.2}
+.hcard:active{cursor:grabbing}
+.hcard.drag{opacity:.45}
+.hcard b{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hmeta{display:flex;gap:3px;flex-wrap:wrap;margin-top:2px}
+.htag{font-size:9.5px;background:rgba(255,255,255,.75);border-radius:999px;padding:0 5px;color:#44546a}
+.htag.op{background:#fff3cd;color:#8a6100}
+.htag.tur{background:#e3ebf5;color:var(--acc)}
+.hpool{display:flex;flex-wrap:wrap;gap:8px;align-items:center;border:1px dashed var(--line);border-radius:8px;padding:8px;min-height:48px}
+.hpool .hcard{margin:0;min-width:150px}
+.hfalta{font-size:11px;color:var(--mut);margin-right:10px}
 
 .sobre p{margin:0 0 8px;text-align:justify}.sobre ol,.sobre ul{margin:4px 0 8px;padding-left:22px}.sobre li{margin:3px 0}
 </style>
@@ -406,6 +427,7 @@ table.t.qeixo{min-width:1040px}
   function novoProjeto() {
     return {
       meta: { formato: 'ppc-grad', versao: 1, criado: new Date().toISOString() },
+      horario: {},
       id: {
         instituicao: 'UNIVERSIDADE FEDERAL DE CIÊNCIA E INOVAÇÃO DE MINAS GERAIS', sigla: 'UFCIMG', diretoria: 'DIRETORIA DE GRADUAÇÃO',
         tipoCurso: 'engenharia', curso: '', grau: 'Bacharelado', titulacao: '', modalidade: 'Presencial',
@@ -413,7 +435,7 @@ table.t.qeixo{min-width:1040px}
         vagasAut: '', vagasProc: '', periodicidade: '', formasIngresso: 'Processo seletivo para o 1º período (SiSU), reingresso, reopção, transferência e obtenção de novo título',
         integPrev: '', integMax: '', tipo: 'implantacao', versao: '', local: '', data: '',
         atoCriacao: '', atoFunc: '', codEmec: '', atoReconh: '', atoRenov: '', cpc: '', enade: '',
-        minutosHA: 50, numeracao: 'in', rodape: '',
+        minutosHA: 50, numeracao: 'in', rodape: '', semanasPeriodo: 20,
         dirigentes: { dg: '', vdg: '', dirgrad: '', adj: '', campus: '' },
         comissoes: { elab: membrosVazios(), reest: membrosVazios(), nde: membrosVazios(), colegiado: membrosVazios() },
         aprovColegiado: '',
@@ -452,6 +474,7 @@ table.t.qeixo{min-width:1040px}
     p.dist = Object.assign(b.dist, p.dist || {}); p.dist.ext = Object.assign({}, p.dist.ext); p.dist.opt = Object.assign({}, p.dist.opt);
     p.docentes = (p.docentes || []).map(x => Object.assign({ id: uid(), nome: '', titulacao: '', area: '', regime: '', depto: '', nde: false }, x));
     if (p.siglas == null) p.siglas = '';
+    if (!p.horario || typeof p.horario !== 'object') p.horario = {};
     p.id.data = dataISO(p.id.data);
     aplicaCampus(p.id);
     return p;
@@ -874,6 +897,231 @@ table.t.qeixo{min-width:1040px}
     return zip(files);
   }
 
+  // ---------- Planilha (.xlsx): um aba por eixo, o horário e o quadro geral ----------
+  // Escrita direta do formato OOXML, com o mesmo empacotador ZIP usado no .docx.
+  const xEsc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/\r/g, '').replace(/\n/g, '&#10;');
+  const xCol = n => { let s = ''; n++; while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); } return s; };
+  // paleta dos eixos (a mesma da matriz visual, em versão de preenchimento)
+  const XCORES = ['DCE9F8', 'FBDCE6', 'DFF0E1', 'FFE9CF', 'E6DEF4', 'D6F2F6', 'FFF8D1', 'EAE3DF', 'F3DDF6', 'E0E3F2', 'E8F3DC', 'FBDAD9', 'E6EAED', 'D8EFEC'];
+  function xlsxEstilos() {
+    const fills = ['<fill><patternFill patternType="none"/></fill>', '<fill><patternFill patternType="gray125"/></fill>',
+      '<fill><patternFill patternType="solid"><fgColor rgb="FF1F3864"/><bgColor indexed="64"/></patternFill></fill>',   // 2 cabeçalho
+      '<fill><patternFill patternType="solid"><fgColor rgb="FFEDF1F7"/><bgColor indexed="64"/></patternFill></fill>',   // 3 faixa clara
+      '<fill><patternFill patternType="solid"><fgColor rgb="FFFFF8D1"/><bgColor indexed="64"/></patternFill></fill>',   // 4 optativas
+      '<fill><patternFill patternType="solid"><fgColor rgb="FFD9E2F3"/><bgColor indexed="64"/></patternFill></fill>']   // 5 total
+      .concat(XCORES.map(c => `<fill><patternFill patternType="solid"><fgColor rgb="FF${c}"/><bgColor indexed="64"/></patternFill></fill>`));
+    const fonts = [
+      '<font><sz val="11"/><name val="Calibri"/></font>',
+      '<font><b/><sz val="11"/><name val="Calibri"/></font>',
+      '<font><b/><sz val="14"/><color rgb="FF1F3864"/><name val="Calibri"/></font>',
+      '<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>',
+      '<font><sz val="9"/><color rgb="FF64748B"/><name val="Calibri"/></font>',
+      '<font><b/><sz val="9"/><name val="Calibri"/></font>',
+      '<font><sz val="10"/><name val="Calibri"/></font>'
+    ];
+    const bordas = ['<border><left/><right/><top/><bottom/><diagonal/></border>',
+      '<border><left style="thin"><color rgb="FFB9C4D4"/></left><right style="thin"><color rgb="FFB9C4D4"/></right><top style="thin"><color rgb="FFB9C4D4"/></top><bottom style="thin"><color rgb="FFB9C4D4"/></bottom><diagonal/></border>'];
+    // xf: [fonte, preenchimento, borda, alinhamento]
+    const xfs = [
+      [0, 0, 0, ''],                                                   // 0 normal
+      [2, 0, 0, ''],                                                   // 1 título
+      [3, 2, 1, ' applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>'], // 2 cabeçalho
+      [0, 0, 1, ' applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf>'],                     // 3 célula
+      [0, 0, 1, ' applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'],              // 4 célula centrada
+      [1, 5, 1, ' applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'],              // 5 total centrado
+      [1, 5, 1, ' applyAlignment="1"><alignment vertical="center"/></xf>'],                                  // 6 total rótulo
+      [4, 0, 0, ' applyAlignment="1"><alignment wrapText="1" vertical="top"/></xf>'],                        // 7 nota
+      [1, 3, 1, ' applyAlignment="1"><alignment vertical="center"/></xf>'],                                  // 8 rótulo de seção
+      [5, 3, 1, ' applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>'], // 9 hora
+      [5, 4, 1, ' applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>'], // 10 faixa optativa
+      [6, 0, 1, ' applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>']                         // 11 célula do horário
+    ].concat(XCORES.map((_, i) => [6, 6 + i, 1, ' applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>']))   // 12+ eixos
+      .concat([[0, 0, 1, ' applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>']]);  // último: centrada com quebra
+    const xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<fonts count="${fonts.length}">${fonts.join('')}</fonts>
+<fills count="${fills.length}">${fills.join('')}</fills>
+<borders count="${bordas.length}">${bordas.join('')}</borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="${xfs.length}">${xfs.map(([f, fi, b, extra]) => `<xf numFmtId="0" fontId="${f}" fillId="${fi}" borderId="${b}" xfId="0" applyFont="1" applyFill="1" applyBorder="1"${extra || '/>'}`).join('')}</cellXfs>
+<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`;
+    return { xml, eixo: i => 12 + (i % XCORES.length), centroQuebra: xfs.length - 1 };
+  }
+  // montagem de uma aba: linhas como listas de {v, s, n} (n = numérico)
+  function xlsxAba(linhas, opc) {
+    opc = opc || {};
+    const corpo = linhas.map((cels, ri) => {
+      if (!cels || !cels.length) return `<row r="${ri + 1}"/>`;
+      const alt = opc.alturas && opc.alturas[ri] ? ` ht="${opc.alturas[ri]}" customHeight="1"` : '';
+      const cs = cels.map((c, ci) => {
+        if (c == null || c === '') return '';
+        const o = typeof c === 'object' ? c : { v: c };
+        const ref = xCol(ci) + (ri + 1), st = o.s != null ? ` s="${o.s}"` : '';
+        if (o.v === '' || o.v == null) return `<c r="${ref}"${st}/>`;
+        if (o.n) return `<c r="${ref}"${st}><v>${Number(o.v)}</v></c>`;
+        return `<c r="${ref}"${st} t="inlineStr"><is><t xml:space="preserve">${xEsc(o.v)}</t></is></c>`;
+      }).join('');
+      return `<row r="${ri + 1}"${alt}>${cs}</row>`;
+    }).join('');
+    const cols = (opc.larguras || []).map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('');
+    const merges = (opc.merges || []).length ? `<mergeCells count="${opc.merges.length}">${opc.merges.map(m => `<mergeCell ref="${m}"/>`).join('')}</mergeCells>` : '';
+    const painel = opc.congelar ? `<sheetView workbookViewId="0"><pane ySplit="${opc.congelar}" topLeftCell="A${opc.congelar + 1}" activePane="bottomLeft" state="frozen"/></sheetView>` : '<sheetView workbookViewId="0"/>';
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews>${painel}</sheetViews>
+${cols ? `<cols>${cols}</cols>` : ''}<sheetData>${corpo}</sheetData>${merges}
+<pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/>
+<pageSetup paperSize="9" orientation="${opc.paisagem ? 'landscape' : 'portrait'}" fitToWidth="1" fitToHeight="0"/>
+</worksheet>`;
+  }
+  function gerarXlsx(p) {
+    const C = calc(p), num = numeracao(p), I = p.id, E = xlsxEstilos();
+    const H = ha => fmtH(ha2h(ha, I.minutosHA || 50));
+    const Hn = ha => Math.round(ha2h(ha, I.minutosHA || 50) * 100) / 100;   // número de verdade para a célula
+    const abas = [];
+    const nomeAba = (base, usados) => { let n = String(base).replace(/[\\\/\?\*\[\]:]/g, ' ').slice(0, 28).trim() || 'Aba'; let k = 1, f = n; while (usados.has(f)) f = `${n} (${++k})`; usados.add(f); return f; };
+    const usados = new Set();
+
+    // ---- uma aba por eixo ----
+    p.eixos.forEach((e, ie) => {
+      const L = [];
+      const obr = p.disciplinas.filter(d => d.eixoId === e.id && !d.optativa && d.nome).sort((a, b) => (+a.periodo || 0) - (+b.periodo || 0) || p.disciplinas.indexOf(a) - p.disciplinas.indexOf(b));
+      const opt = p.disciplinas.filter(d => d.eixoId === e.id && d.optativa && d.nome).sort((a, b) => (+a.periodo || 0) - (+b.periodo || 0));
+      const haObr = obr.reduce((a, d) => a + haDisc(d), 0), haOpt = opt.reduce((a, d) => a + haDisc(d), 0);
+      const mg = [], altE = {};
+      L.push([{ v: `Eixo ${ie + 1} – ${e.nome || '(sem nome)'}`, s: 1 }]); mg.push('A1:H1');
+      L.push([{ v: `${I.curso || 'Curso'}${I.campus ? ' · Campus ' + I.campus : ''}${I.versao ? ' · versão ' + I.versao : ''}`, s: 7 }]); mg.push('A2:H2');
+      L.push([]);
+      L.push([{ v: 'Conteúdos obrigatórios', s: 8 }, { v: '', s: 8 }, { v: 'horas', s: 2 }, { v: 'hora-aula', s: 2 }]); mg.push('A4:B4');
+      L.push([{ v: 'Carga horária do eixo', s: 3 }, { v: '', s: 3 }, { v: Hn(haObr), s: 5, n: 1 }, { v: haObr, s: 5, n: 1 }]); mg.push('A5:B5');
+      L.push([]);
+      L.push([{ v: 'Desdobramento em disciplinas', s: 8 }, { v: '', s: 8 }, { v: '', s: 8 }, { v: '', s: 8 }, { v: '', s: 8 }, { v: '', s: 8 }, { v: '', s: 8 }, { v: '', s: 8 }]); mg.push('A7:H7');
+      L.push([{ v: 'Número', s: 2 }, { v: 'Nome da disciplina', s: 2 }, { v: 'horas', s: 2 }, { v: 'hora-aula', s: 2 }, { v: 'Período', s: 2 }, { v: 'T', s: 2 }, { v: 'P', s: 2 }, { v: 'Caráter', s: 2 }]);
+      const linhaD = d => {
+        const c = carater(d);
+        return [{ v: num.get(d.id) || '', s: 4 }, { v: d.nome, s: 3 }, { v: Hn(haDisc(d)), s: 4, n: 1 }, { v: haDisc(d), s: 4, n: 1 },
+        { v: +d.periodo || '', s: 4, n: 1 }, { v: c === 'P' ? '' : 'x', s: 4 }, { v: c === 'T' ? '' : 'x', s: 4 }, { v: ROT_CARATER[c], s: 4 }];
+      };
+      obr.forEach(d => L.push(linhaD(d)));
+      if (!obr.length) L.push([{ v: '', s: 3 }, { v: 'Nenhuma disciplina obrigatória neste eixo.', s: 3 }]);
+      L.push([{ v: '', s: 6 }, { v: 'Total', s: 6 }, { v: Hn(haObr), s: 5, n: 1 }, { v: haObr, s: 5, n: 1 }, { v: '', s: 5 }, { v: '', s: 5 }, { v: '', s: 5 }, { v: '', s: 5 }]);
+      L.push([]);
+      L.push([{ v: 'Conteúdos optativos', s: 8 }, { v: '', s: 8 }, { v: 'horas', s: 2 }, { v: 'hora-aula', s: 2 }]); mg.push(`A${L.length}:B${L.length}`);
+      L.push([{ v: 'Optativas ofertadas no eixo', s: 3 }, { v: '', s: 3 }, { v: Hn(haOpt), s: 5, n: 1 }, { v: haOpt, s: 5, n: 1 }]); mg.push(`A${L.length}:B${L.length}`);
+      L.push([]);
+      L.push([{ v: 'Número', s: 2 }, { v: 'Nome da disciplina', s: 2 }, { v: 'horas', s: 2 }, { v: 'hora-aula', s: 2 }, { v: 'Período', s: 2 }, { v: 'T', s: 2 }, { v: 'P', s: 2 }, { v: 'Caráter', s: 2 }]);
+      opt.forEach(d => L.push(linhaD(d)));
+      if (!opt.length) L.push([{ v: '', s: 3 }, { v: 'Nenhuma disciplina optativa neste eixo.', s: 3 }]);
+      L.push([]);
+      L.push([{ v: 'Ementa – conteúdos obrigatórios', s: 8 }, { v: '', s: 8 }, { v: '', s: 8 }, { v: '', s: 8 }, { v: '', s: 8 }, { v: '', s: 8 }, { v: '', s: 8 }, { v: '', s: 8 }]); mg.push(`A${L.length}:H${L.length}`);
+      L.push([{ v: e.ementa || '—', s: 7 }]); mg.push(`A${L.length}:H${L.length}`); altE[L.length - 1] = 120;
+      L.push([{ v: 'Ementa – conteúdos optativos', s: 8 }, { v: '', s: 8 }, { v: '', s: 8 }, { v: '', s: 8 }, { v: '', s: 8 }, { v: '', s: 8 }, { v: '', s: 8 }, { v: '', s: 8 }]); mg.push(`A${L.length}:H${L.length}`);
+      L.push([{ v: e.ementaOpt || '—', s: 7 }]); mg.push(`A${L.length}:H${L.length}`); altE[L.length - 1] = 70;
+      abas.push({ nome: nomeAba(`Eixo ${ie + 1}`, usados), xml: xlsxAba(L, { larguras: [11, 52, 9, 11, 9, 5, 5, 16], merges: mg, alturas: altE, congelar: 8 }) });
+    });
+
+    // ---- quadro geral com todos os eixos ----
+    {
+      const L = [];
+      L.push([{ v: `${I.curso || 'Curso'} — disciplinas por eixo`, s: 1 }]);
+      L.push([{ v: `${I.campus ? 'Campus ' + I.campus + ' · ' : ''}${I.versao ? 'versão ' + I.versao + ' · ' : ''}carga horária total ${fmtH(C.hTotal)} h · hora-aula de ${I.minutosHA || 50} min`, s: 7 }]);
+      L.push([]);
+      L.push([{ v: 'Eixo', s: 2 }, { v: 'Número', s: 2 }, { v: 'Disciplina', s: 2 }, { v: 'Tipo', s: 2 }, { v: 'Período', s: 2 }, { v: 'horas', s: 2 }, { v: 'hora-aula', s: 2 }, { v: 'Caráter', s: 2 }, { v: 'Área (DCN)', s: 2 }, { v: 'Característica', s: 2 }]);
+      p.eixos.forEach((e, ie) => {
+        p.disciplinas.filter(d => d.eixoId === e.id && d.nome)
+          .sort((a, b) => (a.optativa ? 1 : 0) - (b.optativa ? 1 : 0) || (+a.periodo || 0) - (+b.periodo || 0))
+          .forEach(d => L.push([{ v: `${ie + 1} – ${e.nome || 'sem nome'}`, s: E.eixo(ie) }, { v: num.get(d.id) || '', s: 4 }, { v: d.nome, s: 3 },
+          { v: d.optativa ? 'Optativa' : 'Obrigatória', s: 4 }, { v: +d.periodo || '', s: 4, n: 1 }, { v: Hn(haDisc(d)), s: 4, n: 1 }, { v: haDisc(d), s: 4, n: 1 },
+          { v: ROT_CARATER[carater(d)], s: 4 }, { v: d.area || '', s: 3 }, { v: d.caracteristica || '', s: 3 }]));
+      });
+      const soltas = p.disciplinas.filter(d => d.nome && !p.eixos.some(e => e.id === d.eixoId));
+      soltas.forEach(d => L.push([{ v: 'sem eixo', s: 4 }, { v: '', s: 4 }, { v: d.nome, s: 3 }, { v: d.optativa ? 'Optativa' : 'Obrigatória', s: 4 }, { v: +d.periodo || '', s: 4, n: 1 }, { v: Hn(haDisc(d)), s: 4, n: 1 }, { v: haDisc(d), s: 4, n: 1 }, { v: ROT_CARATER[carater(d)], s: 4 }, { v: '', s: 3 }, { v: '', s: 3 }]));
+      L.push([{ v: '', s: 6 }, { v: '', s: 6 }, { v: 'Total das disciplinas obrigatórias', s: 6 }, { v: '', s: 5 }, { v: '', s: 5 }, { v: Math.round(C.hObr * 100) / 100, s: 5, n: 1 }, { v: C.haObr, s: 5, n: 1 }, { v: '', s: 5 }, { v: '', s: 5 }, { v: '', s: 5 }]);
+      L.push([]);
+      L.push([{ v: 'Resumo por eixo', s: 8 }]);
+      L.push([{ v: 'Eixo', s: 2 }, { v: 'C.H. obrigatória (h)', s: 2 }, { v: 'Horas-aula (h/a)', s: 2 }, { v: 'Optativas (h/a)', s: 2 }, { v: 'Disciplinas', s: 2 }]);
+      p.eixos.forEach((e, ie) => {
+        const x = C.porEixo[ie];
+        L.push([{ v: `${ie + 1} – ${e.nome || 'sem nome'}`, s: E.eixo(ie) }, { v: Math.round(x.h * 100) / 100, s: 4, n: 1 }, { v: x.ha, s: 4, n: 1 }, { v: x.haOpt || 0, s: 4, n: 1 }, { v: p.disciplinas.filter(d => d.eixoId === e.id && d.nome).length, s: 4, n: 1 }]);
+      });
+      abas.push({ nome: nomeAba('All-Eixos', usados), xml: xlsxAba(L, { larguras: [30, 11, 46, 13, 9, 9, 11, 16, 18, 16], congelar: 4 }) });
+    }
+
+    // ---- horário ----
+    {
+      const DIAS = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
+      const SLOTS = [['17:20', '18:10', 1], ['18:10', '19:00', 1], ['19:00', '19:50', 0], ['19:50', '20:40', 0], ['21:00', '21:50', 0], ['21:50', '22:40', 0]];
+      const L = [], merges = [], alturas = {};
+      L.push([{ v: `${I.curso || 'Curso'} — proposta de horário`, s: 1 }]);
+      L.push([{ v: `Cada célula é uma aula de ${I.minutosHA || 50} minutos. Os dois primeiros tempos, antes das 19h, são reservados às disciplinas optativas. Semanas letivas no período: ${I.semanasPeriodo || 20}.`, s: 7 }]);
+      merges.push(`A2:${xCol(DIAS.length)}2`);
+      L.push([]);
+      const ixEixo = new Map(p.eixos.map((e, i) => [e.id, i]));
+      for (let per = 1; per <= C.nP; per++) {
+        L.push([{ v: `${per}º período`, s: 8 }].concat(DIAS.map(() => ({ v: '', s: 8 }))));
+        L.push([{ v: 'Horário', s: 2 }].concat(DIAS.map(d => ({ v: d, s: 2 }))));
+        SLOTS.forEach((s, si) => {
+          const linha = [{ v: `${s[0]}\n${s[1]}${s[2] ? '\n(optativas)' : ''}`, s: s[2] ? 10 : 9 }];
+          DIAS.forEach((_, di) => {
+            const itens = (p.horario && p.horario[`${per}:${di}:${si}`]) || [];
+            const txt = itens.map(x => { const d = p.disciplinas.find(y => y.id === x.id); return d ? `${num.get(d.id) || ''} ${d.nome}${x.t ? ' · ' + x.t : ''}` : ''; }).filter(Boolean).join('\n');
+            const ie = itens.length === 1 ? ixEixo.get((p.disciplinas.find(y => y.id === itens[0].id) || {}).eixoId) : undefined;
+            linha.push({ v: txt, s: (ie == null ? (s[2] ? 10 : 11) : E.eixo(ie)) });
+          });
+          alturas[L.length] = s[2] ? 40 : 34;
+          L.push(linha);
+        });
+        L.push([]);
+      }
+      abas.push({ nome: nomeAba('Horário', usados), xml: xlsxAba(L, { larguras: [12].concat(DIAS.map(() => 30)), alturas, merges, congelar: 3, paisagem: true }) });
+    }
+
+    // ---- legenda ----
+    {
+      const L = [];
+      L.push([{ v: 'Legenda', s: 1 }]);
+      L.push([]);
+      L.push([{ v: 'Cores dos eixos', s: 8 }, { v: '', s: 8 }]);
+      p.eixos.forEach((e, ie) => L.push([{ v: '', s: E.eixo(ie) }, { v: `Eixo ${ie + 1} – ${e.nome || '(sem nome)'}`, s: 3 }]));
+      L.push([]);
+      L.push([{ v: 'Abreviaturas', s: 8 }, { v: '', s: 8 }]);
+      [['h', 'hora (60 min)'], ['h/a', `hora-aula (${I.minutosHA || 50} min)`], ['T', 'disciplina teórica'], ['P', 'disciplina prática'],
+      ['Teór./prát.', 'disciplina teórica e prática'], ['op', 'disciplina optativa'],
+      ['Número', `número da disciplina — ${I.numeracao === 'periodo' ? 'período.ordem/eixo' : 'ordem/eixo'} (IN DIRGRAD nº 01/2023)`],
+      ['T1, T2', 'turmas de uma mesma aula, quando a disciplina é desdobrada']].forEach(([a, b]) => L.push([{ v: a, s: 4 }, { v: b, s: 3 }]));
+      L.push([]);
+      L.push([{ v: 'Como usar', s: 8 }, { v: '', s: 8 }]);
+      [['Abas Eixo 1…n', 'a carga horária de cada eixo e o desdobramento em disciplinas obrigatórias e optativas, com as ementas do eixo.'],
+      ['Aba All-Eixos', 'todas as disciplinas numa tabela só, com o resumo de carga horária por eixo.'],
+      ['Aba Horário', 'a proposta de horário, período a período, na mesma disposição do quadro de horários da instituição.'],
+      ['Fonte', 'gerada pelo Gerador de PPC da Graduação a partir dos dados do projeto; confira antes de divulgar.']].forEach(([a, b]) => L.push([{ v: a, s: 4 }, { v: b, s: 3 }]));
+      abas.push({ nome: nomeAba('Legenda', usados), xml: xlsxAba(L, { larguras: [16, 86] }) });
+    }
+
+    const arquivos = [
+      {
+        name: '[Content_Types].xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+${abas.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>`
+      },
+      {
+        name: '_rels/.rels', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`
+      },
+      {
+        name: 'xl/workbook.xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${abas.map((a, i) => `<sheet name="${xEsc(a.nome)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets></workbook>`
+      },
+      {
+        name: 'xl/_rels/workbook.xml.rels', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${abas.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}<Relationship Id="rId${abas.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`
+      },
+      { name: 'xl/styles.xml', data: E.xml }
+    ].concat(abas.map((a, i) => ({ name: `xl/worksheets/sheet${i + 1}.xml`, data: a.xml })));
+    return zip(arquivos);
+  }
 
   // ===================== PPC (.docx) no modelo da IN DIRGRAD nº 01/2023 =====================
   function gerarPPC(p, opcoes) {
@@ -1227,7 +1475,11 @@ table.t.qeixo{min-width:1040px}
       I.endereco || ''
     ]).filter(x => String(x).trim());
     const pagNum = (sz, cor, bold) => ['begin', ' PAGE ', 'separate', '1', 'end'].map((x, k) => `<w:r><w:rPr>${bold ? '<w:b/>' : ''}${cor ? `<w:color w:val="${cor}"/>` : ''}<w:sz w:val="${Math.round(sz * 2)}"/></w:rPr>${k === 1 ? `<w:instrText xml:space="preserve">${x}</w:instrText>` : k === 3 ? `<w:t>${x}</w:t>` : `<w:fldChar w:fldCharType="${x}"/>`}</w:r>`).join('');
-    const rodCentro = (sz, cor) => rodLinhas.map((t, i) => para(run(t, { size: sz, color: cor }), { style: 'Rodap', align: 'center', spacing: [0, 0], line: 200 })).join('');
+    // tarja do rodapé: as linhas saem sobre um fundo cinza contínuo, como nos PPCs da instituição
+    const FAIXA = 'D9D9D9';
+    const rodCentro = (sz, cor) => [para(run(' ', { size: 3 }), { style: 'Rodap', spacing: [0, 0], line: 60, shade: FAIXA })]
+      .concat(rodLinhas.map(t => para(run(t, { size: sz, color: cor }), { style: 'Rodap', align: 'center', spacing: [0, 0], line: 200, shade: FAIXA })))
+      .concat([para(run(' ', { size: 3 }), { style: 'Rodap', spacing: [0, 0], line: 60, shade: FAIXA })]).join('');
     const hf = TEMA ? {
       header: util => para([run('PROJETO PEDAGÓGICO DE CURSO', { bold: true, size: 7.5, color: ACC, spc: 40 }), '<w:r><w:tab/></w:r>', run(nomeCurso, { size: 8.5, color: MUT })].join(''), { style: 'Cabealho', tabs: [['right', util]], spacing: [0, 0] }),
       footer: util => para([run(`${I.sigla || ''}${I.campus ? '  ·  Campus ' + I.campus : ''}`, { size: 8, color: MUT }), '<w:r><w:tab/></w:r>', pagNum(13, DEEP, true)].join(''), { style: 'Rodap', tabs: [['right', util]], spacing: [0, 0] })
@@ -1240,7 +1492,7 @@ table.t.qeixo{min-width:1040px}
     return buildDocx(B.join(''), { hf, lastSect: sectPr('retrato', false, true), updateFields: true, title: `Projeto Pedagógico do Curso de ${nomeCurso}`, image: logo, partes: opcoes.partes, logoURL: ((I.logo && I.logo.dataURL) || (root.PPC_LOGO && root.PPC_LOGO.dataURL) || '') });
   }
 
-  const API = { ROT_CARATER, carater, SIGLAS_PADRAO, CAMPI, TEXTOS, LIMITE, DCN_BASICOS, AREAS_DCN, CARACT, NOMES_ATV, SECOES, uid, norm, lines, fmtN, fmtH, fmtP, aplicaCampus, novoProjeto, novoEixo, novaCompetencia, novaDisciplina, hidratar, dataISO, mesAno, calc, numeracao, haDisc, natureza, tp, ha2h, h2ha, validar, eqBusca, resumoSecoes, abntProblema, abntPartes, gerarPPC };
+  const API = { ROT_CARATER, carater, gerarXlsx, SIGLAS_PADRAO, CAMPI, TEXTOS, LIMITE, DCN_BASICOS, AREAS_DCN, CARACT, NOMES_ATV, SECOES, uid, norm, lines, fmtN, fmtH, fmtP, aplicaCampus, novoProjeto, novoEixo, novaCompetencia, novaDisciplina, hidratar, dataISO, mesAno, calc, numeracao, haDisc, natureza, tp, ha2h, h2ha, validar, eqBusca, resumoSecoes, abntProblema, abntPartes, gerarPPC };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.PPCG = API;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -1456,6 +1708,7 @@ window.PPCG_MODELO={"meta":{"formato":"ppc-grad","versao":1,"modelo":"Engenharia
     const q = s => '"' + String(s || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\u0000\d?/g, '') + '"';
     const pg = s => s.includes('\u0000') ? `${q(s.split('\u0000')[0])} counter(page)` : q(s);
     const lin = arr => arr.length ? arr.map(q).join(' "\\A" ') : '""';
+    const FAIXA = '#e6e8ea';   // tarja cinza atrás do rodapé, como nos PPCs da instituição
     const h0 = H1 && H1[0] ? H1[0].partes : ['', ''];
     // rodapé: cada parágrafo do rodapé do documento vira uma linha, na mesma posição (esquerda, centro ou direita)
     const fBal = { left: [], center: [], right: [] };
@@ -1472,9 +1725,9 @@ window.PPCG_MODELO={"meta":{"formato":"ppc-grad","versao":1,"modelo":"Engenharia
     const margem = (nome, larg) => `@page ${nome}{size:${larg};margin:${M} ${M} 24mm ${M};
       @top-left{content:${logoCab ? `image-set(url(${logoCab}) 3x) ` : ''}${q(h0.length > 1 ? h0[0] : '')};font:8pt ${FONTE};color:#${corH};vertical-align:bottom;padding-bottom:3mm}
       @top-right{content:${q(h0[h0.length - 1])};font:${opc.moderno ? 8.5 : 10}pt ${FONTE};color:#${opc.moderno ? '64748B' : '000'};vertical-align:bottom;padding-bottom:3mm${opc.moderno ? '' : ';border-bottom:0'}}
-      @bottom-left{content:${lin(fBal.left)};white-space:pre;font:${fTam}pt ${FONTE};color:#${opc.moderno ? '64748B' : '000'};vertical-align:top;padding-top:3mm}
-      @bottom-center{content:${lin(fBal.center)};white-space:pre;text-align:center;font:${fTam}pt ${FONTE};color:#${opc.moderno ? '64748B' : '000'};vertical-align:top;padding-top:3mm}
-      @bottom-right{content:counter(page);font:${opc.moderno ? '700 12pt' : '10pt'} ${FONTE};color:#${opc.moderno ? '0B1F3A' : '000'};vertical-align:top;padding-top:3mm}}`;
+      @bottom-left{content:${lin(fBal.left)};white-space:pre;font:${fTam}pt ${FONTE};color:#${opc.moderno ? '64748B' : '000'};vertical-align:center;background:${FAIXA};padding:1.5mm 2mm}
+      @bottom-center{content:${lin(fBal.center)};white-space:pre;text-align:center;font:${fTam}pt ${FONTE};color:#${opc.moderno ? '64748B' : '000'};vertical-align:center;background:${FAIXA};padding:1.5mm 2mm}
+      @bottom-right{content:counter(page);font:${opc.moderno ? '700 12pt' : '10pt'} ${FONTE};color:#${opc.moderno ? '0B1F3A' : '000'};vertical-align:center;background:${FAIXA};padding:1.5mm 2mm}}`;
     let pageCss = `@page vazio{size:A4;margin:0}\n${margem('ret', 'A4')}\n${margem('pai', 'A4 landscape')}`;
     // corpo
     let html = '';
@@ -1638,7 +1891,7 @@ thead{display:table-header-group}
 img{max-width:100%}
 ${css}
 @media screen{body{background:#e8ecf1}.pg{background:#fff;margin:12px auto;box-shadow:0 2px 12px rgba(0,0,0,.15);width:210mm;min-height:297mm;box-sizing:border-box;padding:25mm}.pg.pai{width:297mm;min-height:210mm}.pg.vazio{padding:25mm}
-.pgrod{position:absolute;left:25mm;right:25mm;bottom:9mm;display:flex;align-items:flex-end;gap:8mm;color:#555;line-height:1.25;border-top:.4pt solid #d8dee6;padding-top:1.6mm}
+.pgrod{position:absolute;left:25mm;right:25mm;bottom:8mm;display:flex;align-items:center;gap:6mm;color:#333;line-height:1.3;background:#e6e8ea;padding:1.6mm 2.5mm;border-radius:1px}
 .pgrodt{flex:1;white-space:pre-line;text-align:center}
 .pgrodn{font-weight:700;color:#333;white-space:nowrap}
 .pg.vazio .pgrod{display:none}
@@ -2092,7 +2345,7 @@ const $$ = (s, r) => [...(r || document).querySelectorAll(s)];
 const h = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const G = window.PPCG;
 const KEY = 'ppc-grad-rascunho-v1', KEY_ANT = 'ppc-grad-rascunho-anterior';
-const VERSAO = '1.9', VERSAO_DATA = '26/11/2026', VERSAO_TAG = 'beta';
+const VERSAO = '2.0', VERSAO_DATA = '27/11/2026', VERSAO_TAG = 'beta';
 const AUTOR = { nome: 'Prof. Alexandre Rodrigues Farias', linkedin: 'https://www.linkedin.com/in/alexandre-rodrigues-farias' };
 let P = null, ISS = [], step = 'ident', selDisc = null, RASCUNHO = null;
 
@@ -2119,6 +2372,9 @@ async function baixar(nome, data) {
 }
 let toastT;
 function toast(m) { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 3400); }
+// nome do arquivo salvo: denominação do curso + data + hora da gravação
+const carimbo = () => { const d = new Date(), z = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}_${z(d.getHours())}h${z(d.getMinutes())}`; };
+const nomeArquivo = (ext, pre) => `${pre ? pre + '-' : ''}${slug()}-${carimbo()}.${ext}`;
 const slug = () => (P.id.curso || 'ppc').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 60) || 'ppc';
 function modal(html) {
   let m = $('#modal'); if (!m) { m = document.createElement('div'); m.id = 'modal'; document.body.appendChild(m); }
@@ -2161,6 +2417,7 @@ const STEPS = [
   ['eixos', 'Eixos de conteúdos', ['eixos']],
   ['disc', 'Disciplinas', ['disc']],
   ['matriz', 'Matriz curricular visual', null],
+  ['horario', 'Horário das aulas', null],
   ['ch', 'Atividades e carga horária', ['ch']],
   ['pessoal', 'Pessoal docente e NDE', ['pessoal']],
   ['validar', 'Pendências', null],
@@ -2272,7 +2529,7 @@ function render() {
   if (!EXTRAS.includes(step) && !STEPS.some(x => x[0] === step)) step = 'ident';
   ISS = G.validar(P);
   renderNav();
-  const f = { ident: vIdent, textos: vTextos, comp: vComp, eixos: vEixos, disc: vDisc, matriz: vMatriz, ch: vCH, pessoal: vPessoal, validar: vValidar, gerar: vGerar, normas: vNormas, sobre: vSobre, tutorial: vTutorial }[step];
+  const f = { ident: vIdent, textos: vTextos, comp: vComp, eixos: vEixos, disc: vDisc, matriz: vMatriz, horario: vHorario, ch: vCH, pessoal: vPessoal, validar: vValidar, gerar: vGerar, normas: vNormas, sobre: vSobre, tutorial: vTutorial }[step];
   // a lista lateral de disciplinas guarda a posição da rolagem: redesenhar não devolve o usuário ao topo
   const _dl = $('#dlist'), _top = _dl ? _dl.scrollTop : 0;
   $('#main').innerHTML = (RASCUNHO && !CO.pid ? `<div class="rasc"><span>Há um rascunho salvo neste navegador${RASCUNHO.id.curso ? ': <b>' + h(RASCUNHO.id.curso) + '</b>' : ''}.</span><button class="sm" data-rasc="abrir">Continuar rascunho</button><button class="sm ghost" data-rasc="descartar">Descartar</button></div>` : '') + f();
@@ -2836,7 +3093,8 @@ function vGerar() {
     <div class="card"><h3>PPC completo</h3><p>No padrão institucional: capa, folha de rosto, listas, ficha de identificação, sumário, todas as seções, Quadros 1 a 8 (a matriz curricular em fluxograma, numa folha deitada) e a bibliografia por disciplina, com o logotipo no cabeçalho e o rodapé com o nome do curso, o campus e o número da página. No Word, aceite “atualizar campos” para numerar o sumário. O PDF abre numa prévia: clique em <b>Salvar em PDF</b> e escolha “Salvar como PDF”.</p><div class="row" style="gap:6px"><button class="pri" data-act="gPdf">Arquivo PDF</button><button class="pri" data-act="gDocx">Arquivo .docx</button></div></div>
     <div class="card"><h3>PPC completo – Novo Layout <span class="tag prop">PROPOSTA</span></h3><p>O mesmo conteúdo em visual de relatório moderno: capa em bloco azul-escuro com o nome do curso em destaque e indicadores (carga horária, duração, turno, estágio), folha de rosto com faixa lateral, seções numeradas 01, 02…, tabelas só com linhas horizontais e cabeçalho escuro. <b style="color:#c62828">Proposta</b> para avaliação como novo padrão.</p><div class="row" style="gap:6px"><button class="pri" data-act="gPdfM">Arquivo PDF</button><button class="pri" data-act="gDocxM">Arquivo .docx</button></div></div>
     <div class="card"><h3>Matriz curricular visual (PDF)</h3><p>O fluxograma do curso em folha A3 deitada, com as cores dos eixos, os pré e correquisitos, as atividades por período e o quadro-resumo, para levar ao colegiado ou divulgar aos estudantes.</p><button class="pri" data-act="mvPdf">Arquivo PDF</button></div>
-    <div class="card"><h3>Arquivo do projeto (.json)</h3><p>O projeto completo para abrir de novo no gerador (botão <b>Abrir</b>), continuar depois ou enviar a um colega.</p><button class="pri" data-act="gJson">Baixar arquivo do projeto</button></div>
+    <div class="card"><h3>Disciplinas e horário (.xlsx)</h3><p>Uma planilha com uma aba por eixo (carga horária e desdobramento em disciplinas), o quadro geral de todos os eixos, a proposta de horário e a legenda das cores e abreviaturas.</p><button class="pri" data-act="gXlsx">Baixar planilha</button></div>
+    <div class="card"><h3>Arquivo do projeto (.json)</h3><p>O projeto completo para abrir de novo no gerador (botão <b>Abrir</b>), continuar depois ou enviar a um colega. O nome do arquivo sai com o curso, a data e a hora da gravação.</p><button class="pri" data-act="gJson">Baixar arquivo do projeto</button></div>
   </div>
   <p class="muted" style="margin-top:14px">Guarde também o arquivo do projeto (botão <b>Salvar</b> no topo) para continuar depois ou passar a um colega.</p>`;
 }
@@ -2989,7 +3247,12 @@ document.addEventListener('click', async ev => {
   const as = ev.target.closest('[data-anppcsec]'); if (as) { ev.preventDefault(); if (window.PPC_VER_SECAO) PPC_VER_SECAO(as.dataset.anppcsec); return; }
   const mc = ev.target.closest('[data-mact]'); if (mc) { modal(''); return; }
   const nv = ev.target.closest('[data-novo]'); if (nv) { ev.preventDefault(); return novoComo(nv.dataset.novo); }
-  const rs = ev.target.closest('[data-rasc]'); if (rs) { if (rs.dataset.rasc === 'abrir') { P = RASCUNHO; toast('Rascunho retomado.'); } try { localStorage.removeItem(KEY_ANT); } catch (e) { } RASCUNHO = null; selDisc = null; touch(true); return; }
+  const rs = ev.target.closest('[data-rasc]'); if (rs) {
+    const abrir = rs.dataset.rasc === 'abrir', rasc = RASCUNHO;
+    const segue = () => { if (abrir && rasc) { P = rasc; toast('Rascunho retomado.'); } try { localStorage.removeItem(KEY_ANT); } catch (e) { } RASCUNHO = null; selDisc = null; touch(true); };
+    if (abrir) trocarProjeto(segue, 'retomar o rascunho'); else segue();
+    return;
+  }
   const dc = ev.target.closest('[data-doc]');
   if (dc && dc.tagName === 'BUTTON') { const d = [...DOCS, ...DOCS_RES].find(x => x[0] === dc.dataset.doc); try { const b = await docBlob(d[3]); if (dc.dataset.dm === 'abrir') { const w = window.open(URL.createObjectURL(b), '_blank'); if (w) return; } baixar(d[3], b); } catch (e) { toast('Documento indisponível nesta cópia do gerador.'); } return; }
   const sh = ev.target.closest('[data-share]');
@@ -3014,6 +3277,8 @@ document.addEventListener('click', async ev => {
     case 'eixoUp': { const i = +t.dataset.i, e = P.eixos; [e[i - 1], e[i]] = [e[i], e[i - 1]]; touch(true); break; }
     case 'eixoDown': { const i = +t.dataset.i, e = P.eixos; if (i + 1 < e.length) { [e[i + 1], e[i]] = [e[i], e[i + 1]]; touch(true); } break; }
     case 'rodapePadrao': { P.id.rodape = rodapePadrao().join('\n'); touch(true); toast('Texto padrão trazido para o campo: edite o que quiser.'); break; }
+    case 'horLimpar': { const pp = t.dataset.p ? +t.dataset.p : null; if (!confirmar('hl' + (pp || 'all'), pp ? `Tirar da grade todas as aulas do ${pp}º período? Clique de novo para confirmar.` : 'Limpar o horário inteiro? Clique de novo para confirmar.')) break; horLimpar(pp); touch(true); toast(pp ? `Horário do ${pp}º período limpo.` : 'Horário limpo.'); break; }
+    case 'gXlsx': try { baixar(nomeArquivo('xlsx', 'Disciplinas-e-horario'), G.gerarXlsx(P)); toast('Planilha gerada.'); } catch (e) { console.error(e); toast('Erro ao gerar a planilha: ' + e.message); } break;
     case 'eixoToggle': { if (EIXO_FECHADO.has(id)) EIXO_FECHADO.delete(id); else EIXO_FECHADO.add(id); render(); break; }
     case 'eixoFecharTodos': { P.eixos.forEach(e => EIXO_FECHADO.add(e.id)); render(); break; }
     case 'eixoAbrirTodos': { EIXO_FECHADO.clear(); render(); break; }
@@ -3071,7 +3336,7 @@ document.addEventListener('click', async ev => {
     case 'mxDist': MX.sel = 'dist'; mxRender(); break;
     case 'docAdd': P.docentes.push({ id: G.uid(), nome: '', titulacao: '', area: '', regime: '', depto: '', nde: false }); touch(true); break;
     case 'docRm': P.docentes = P.docentes.filter(x => x.id !== id); touch(true); break;
-    case 'gDocx': try { baixar(`PPC-${slug()}.docx`, G.gerarPPC(P)); } catch (e) { console.error(e); toast('Erro ao gerar o PPC: ' + e.message); } break;
+    case 'gDocx': try { baixar(nomeArquivo('docx'), G.gerarPPC(P)); } catch (e) { console.error(e); toast('Erro ao gerar o PPC: ' + e.message); } break;
     case 'gPdf': gerarPDF(false); break;
     case 'gPdfM': gerarPDF(true); break;
     case 'gDocxM': try { baixar(`PPC-${slug()}-novo-layout.docx`, G.gerarPPC(P, { tema: 'moderno' })); } catch (e) { console.error(e); toast('Erro ao gerar o PPC: ' + e.message); } break;
@@ -3081,11 +3346,11 @@ document.addEventListener('click', async ev => {
 let conf = { k: null, t: 0 };
 function confirmar(k, msg) { if (conf.k === k && Date.now() - conf.t < 4000) { conf = { k: null, t: 0 }; return true; } conf = { k, t: Date.now() }; toast(msg); return false; }
 function headerClick(id) {
-  if (id === 'bAbrir') return $('#fAbrir').click();
-  if (id === 'bImportar') return $('#fImportar').click();
+  if (id === 'bAbrir') return trocarProjeto(() => $('#fAbrir').click(), 'abrir um arquivo de projeto');
+  if (id === 'bImportar') return trocarProjeto(() => $('#fImportar').click(), 'importar um PPC');
   if (id === 'bEquipe') return colabAbrir();
   if (id === 'bComent') return window.PPC_COMENTADO_ABRIR ? PPC_COMENTADO_ABRIR() : toast('Indisponível nesta cópia.');
-  if (id === 'bSalvar') { P.meta = Object.assign({}, P.meta, { versaoGerador: VERSAO }); baixar(`Projeto-PPC-${slug()}.json`, JSON.stringify(Object.assign({}, P, { id: Object.assign({}, P.id, { logo: null }) }), null, 1)); toast('Projeto salvo no seu computador. Para continuar depois, use “Abrir”.'); return; }
+  if (id === 'bSalvar') { P.meta = Object.assign({}, P.meta, { versaoGerador: VERSAO }); baixar(nomeArquivo('json'), JSON.stringify(Object.assign({}, P, { id: Object.assign({}, P.id, { logo: null }) }), null, 1)); toast('Projeto salvo no seu computador. Para continuar depois, use “Abrir”.'); return; }
   if (id === 'bShare') return compartilhar();
   if (id === 'bNovo') return modal(`<h3>Novo PPC</h3><p class="muted" style="margin:0 0 4px">Como você quer começar? O projeto aberto agora neste navegador será substituído; se precisar dele, use <b>Salvar</b> antes.</p>
     <div class="novo">
@@ -3096,9 +3361,9 @@ function headerClick(id) {
 }
 function novoComo(tipo) {
   modal('');
-  if (tipo === 'importar') return $('#fImportar').click();
-  if (tipo === 'branco') { P = novo(); selDisc = null; RASCUNHO = null; touch(true); go('ident'); return toast('Novo projeto em branco.'); }
-  if (tipo === 'modelo' && window.PPCG_MODELO) { P = migrate(JSON.parse(JSON.stringify(window.PPCG_MODELO))); P.id.data = new Date().toISOString().slice(0, 10); selDisc = null; RASCUNHO = null; touch(true); go('ident'); return toast('PPC existente carregado. Edite e adapte ao seu curso.'); }
+  if (tipo === 'importar') return trocarProjeto(() => $('#fImportar').click(), 'importar um PPC');
+  if (tipo === 'branco') return trocarProjeto(() => { P = novo(); selDisc = null; RASCUNHO = null; touch(true); go('ident'); toast('Novo projeto em branco.'); }, 'começar um projeto em branco');
+  if (tipo === 'modelo' && window.PPCG_MODELO) return trocarProjeto(() => { P = migrate(JSON.parse(JSON.stringify(window.PPCG_MODELO))); P.id.data = new Date().toISOString().slice(0, 10); selDisc = null; RASCUNHO = null; touch(true); go('ident'); toast('PPC existente carregado. Edite e adapte ao seu curso.'); }, 'carregar um PPC existente');
 }
 const LINK_PUBLICADO = '';
 const MCSS = `.mleglist{display:flex;flex-wrap:wrap;gap:4px 12px;margin-bottom:8px;font-size:12px;position:sticky;top:var(--hh,0px);z-index:5;background:var(--bg,#f7f9fc);padding:6px 0;border-bottom:1px solid #e2e8f0}.mleglist.base{position:static;border:0;margin:8px 0 0;padding:0;background:none}.mleg{display:inline-flex;align-items:center;gap:6px}.mleg i{width:14px;height:14px;border-radius:4px;border:2px solid;display:inline-block}
@@ -3554,6 +3819,7 @@ function colabSair(silencioso) {
   CO.unsub.forEach(f => { try { f && f(); } catch (e) { } }); CO.unsub = [];
   if (CO.pid && CO.B && CO.user) { try { CO.B.set(`presenca/${CO.pid}/${CO.user.uid}`, null); } catch (e) { } }
   CO.pid = null; CO.ultimo = null; CO.pres = {}; CO.membros = {}; clearTimeout(CO.timer);
+  if (P && P.meta) delete P.meta.pid;
   if (!silencioso) { history.replaceState(null, '', location.pathname + location.search); toast('Você saiu do PPC compartilhado. O que está na tela continua como cópia neste navegador.'); render(); }
 }
 // apaga da nuvem um PPC compartilhado: tira do índice de cada membro e remove o projeto
@@ -3570,9 +3836,27 @@ async function colabExcluirPPC(pid) {
   } catch (e) { toast('Não foi possível excluir: ' + ((e && e.message) || e)); }
   colabAbrir();
 }
-function colabMudou() { if (!CO.pid || CO.carregando || !CO.ultimo) return; CO.pendente = true; clearTimeout(CO.timer); CO.timer = setTimeout(colabEnvia, 350); }
+// Trava de segurança: o projeto da tela guarda o pid a que pertence. Se o que está na tela for outro
+// projeto (troca em bloco por Novo, Abrir ou Importar), nada é enviado — senão o PPC da equipe seria
+// gravado por cima. Vale mesmo que algum caminho futuro esqueça de desconectar antes de trocar.
+let avisouTroca = false;
+function colabProjetoBate() {
+  if (!CO.pid) return false;
+  const marca = P && P.meta && P.meta.pid;
+  if (!marca) { if (P && P.meta) P.meta.pid = CO.pid; return true; }
+  return marca === CO.pid;
+}
+function colabMudou() {
+  if (!CO.pid || CO.carregando || !CO.ultimo) return;
+  if (!colabProjetoBate()) {
+    if (!avisouTroca) { avisouTroca = true; toast('O projeto nesta tela não é o da equipe conectada: nada foi gravado na nuvem. Saia do PPC compartilhado ou reabra-o pela Equipe.'); }
+    return;
+  }
+  avisouTroca = false;
+  CO.pendente = true; clearTimeout(CO.timer); CO.timer = setTimeout(colabEnvia, 350);
+}
 function colabEnvia() {
-  if (!CO.pid || !CO.ultimo) return;
+  if (!CO.pid || !CO.ultimo || !colabProjetoBate()) return;
   const agora = planoDe(P), f = {};
   Object.keys(agora).forEach(k => { if (agora[k] !== CO.ultimo[k]) f[k] = agora[k]; });
   Object.keys(CO.ultimo).forEach(k => { if (!(k in agora)) f[k] = null; });
@@ -3590,7 +3874,7 @@ function colabRecebe(v) {
   if (!CO.pid) return;
   if (!v) { CO.carregando = false; return; }
   const remoto = achatar(v);
-  if (CO.carregando || !CO.ultimo) { CO.carregando = false; CO.ultimo = remoto; P = migrate(deArvore(v)); ADAPT.carregou(); render(); toast('PPC compartilhado aberto. As alterações aparecem para todos em tempo real.'); return; }
+  if (CO.carregando || !CO.ultimo) { CO.carregando = false; CO.ultimo = remoto; P = migrate(deArvore(v)); P.meta.pid = CO.pid; ADAPT.carregou(); render(); toast('PPC compartilhado aberto. As alterações aparecem para todos em tempo real.'); return; }
   // mescla em três vias: o que mudou aqui e ainda não foi enviado prevalece
   const local = planoDe(P), mesclado = Object.assign({}, remoto);
   Object.keys(local).forEach(k => { if (local[k] !== CO.ultimo[k]) mesclado[k] = local[k]; });
@@ -3680,8 +3964,28 @@ async function colabAbrir() {
     <p class="muted" style="font-size:12.5px;margin-top:0">Cria um ${ADAPT.termo || 'PPC'} compartilhado a partir do que está na tela (${h(ADAPT.curso(P) || 'projeto sem nome')}). Depois, envie o link para os colegas.</p>
     <div class="row" style="justify-content:space-between;gap:8px"><button class="ghost" data-colab="logout">Trocar de conta</button><span><button class="ghost" data-mact="cancelar">Fechar</button> <button class="pri" data-colab="criar">Compartilhar este PPC</button></span></div></div>`);
 }
+// Porta única para trocar o projeto da tela (Novo, Abrir, Importar): com a equipe conectada,
+// desconecta antes, para que a troca nunca seja espelhada na nuvem.
+let TROCA = null;
+function trocarProjeto(fn, oque) {
+  if (!CO.pid) return fn();
+  const nome = (CO.meta && CO.meta.curso) || ADAPT.curso(P) || 'PPC sem nome';
+  TROCA = fn;
+  modal(`<h3>Sair do PPC compartilhado antes?</h3>
+    <p>Você está conectado à equipe de <b>${h(nome)}</b>, e ${oque} substitui o projeto que está nesta tela.</p>
+    <p class="muted">Para não gravar por cima do PPC da equipe, o gerador se <b>desconecta</b> dele antes de abrir o outro. O PPC compartilhado continua na nuvem, intacto, e você volta a ele pela <b>Equipe</b> quando quiser.</p>
+    <div class="row" style="justify-content:flex-end;gap:8px"><button class="ghost" data-mact="cancelar">Cancelar</button><button class="pri" data-trocar="1">Desconectar e continuar</button></div>`);
+}
+document.addEventListener('click', ev => {
+  if (!ev.target.closest('[data-trocar]')) return;
+  ev.preventDefault(); modal('');
+  const f = TROCA; TROCA = null;
+  colabSair(true); render();
+  if (f) f();
+});
 async function colabCriar() {
   const B = CO.B, me = chaveEmail(CO.user.email), pid = B.chave(), agora = Date.now();
+  P.meta.pid = pid;
   const proj = { meta: { dono: CO.user.uid, donoEmail: CO.user.email, curso: ADAPT.curso(P), criado: agora, gerador: ADAPT.gerador }, membros: { [me]: { papel: 'dono', nome: CO.user.nome } }, dados: paraArvore(Object.assign({}, P, { anterior: P.anterior || null }), true) };
   try { await B.set(`projetos/${pid}`, proj); await B.set(`indice/${me}/${pid}`, { curso: ADAPT.curso(P), papel: 'dono', criado: agora, gerador: ADAPT.gerador }); }
   catch (e) { return toast('Não foi possível criar o PPC compartilhado: ' + e.message); }
@@ -3939,6 +4243,122 @@ async function cmtAbrir() {
   CMT.montando = false;
 }
 
+
+// ---------- Horário das aulas: grade por período, com arrastar e soltar ----------
+// Modelo: P.horario['<periodo>:<dia>:<slot>'] = [{ id: <disciplina>, t: '<turma>' }]
+const HOR_DIAS = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
+// os dois primeiros tempos, antes das 19h, são reservados às disciplinas optativas
+const HOR_SLOTS = [
+  { ini: '17:20', fim: '18:10', opt: true },
+  { ini: '18:10', fim: '19:00', opt: true },
+  { ini: '19:00', fim: '19:50' },
+  { ini: '19:50', fim: '20:40' },
+  { ini: '21:00', fim: '21:50' },
+  { ini: '21:50', fim: '22:40' }
+];
+const horChave = (p, d, s) => `${p}:${d}:${s}`;
+const horCel = k => (P.horario && Array.isArray(P.horario[k])) ? P.horario[k] : [];
+const horSemanas = () => +P.id.semanasPeriodo || 20;
+// quantas aulas por semana a carga horária da disciplina pede
+const horAulas = d => Math.max(0, Math.round(G.haDisc(d) / horSemanas()));
+function horAlocadas(id) {
+  let n = 0;
+  Object.keys(P.horario || {}).forEach(k => horCel(k).forEach(x => { if (x.id === id) n++; }));
+  return n;
+}
+function horLimpar(periodo) {
+  Object.keys(P.horario || {}).forEach(k => { if (periodo == null || k.startsWith(periodo + ':')) delete P.horario[k]; });
+}
+// tira a disciplina de uma célula e põe em outra
+function horMover(id, deK, paraK, turma) {
+  if (deK) {
+    const a = horCel(deK), i = a.findIndex(x => x.id === id);
+    if (i >= 0) { a.splice(i, 1); if (!a.length) delete P.horario[deK]; else P.horario[deK] = a; }
+  }
+  if (paraK) {
+    const a = horCel(paraK).slice();
+    a.push({ id, t: turma || '' });
+    P.horario[paraK] = a;
+  }
+}
+function horCartao(x, k, num) {
+  const d = P.disciplinas.find(y => y.id === x.id);
+  if (!d) return '';
+  const [bg, bd] = corEixo(d.eixoId), ha = G.haDisc(d);
+  const ie = P.eixos.findIndex(e => e.id === d.eixoId);
+  return `<div class="hcard" draggable="true" data-hc="${d.id}" data-hk="${k || ''}" style="background:${bg};border-color:${bd}"
+    title="${h(`${d.nome}\n${num.get(d.id) || ''} · ${ha} h/a (${G.fmtH(G.ha2h(ha, P.id.minutosHA))} h) · ${G.ROT_CARATER[G.carater(d)]}${ie >= 0 ? '\nEixo ' + (ie + 1) + ' – ' + (P.eixos[ie].nome || '') : '\nSem eixo'}${d.optativa ? '\nOptativa' : ''}\nArraste para outro dia ou horário; clique duas vezes para abrir a disciplina.`)}">
+    <b>${h(d.nome || '(sem nome)')}</b>
+    <span class="hmeta"><span class="htag">${h(num.get(d.id) || '–')}</span>${d.optativa ? '<span class="htag op">op</span>' : ''}<span class="htag">${G.tp(d)}</span>${x.t ? `<span class="htag tur">${h(x.t)}</span>` : ''}</span>
+  </div>`;
+}
+function horGradeHTML(periodo, num) {
+  const linhas = HOR_SLOTS.map((s, si) => {
+    const cels = HOR_DIAS.map((_, di) => {
+      const k = horChave(periodo, di, si), itens = horCel(k);
+      const cheio = itens.length > 1;
+      return `<td class="hcel${s.opt ? ' hopt' : ''}${cheio ? ' hconf' : ''}" data-hdrop="${k}">${itens.map(x => horCartao(x, k, num)).join('')}</td>`;
+    }).join('');
+    return `<tr><th class="hhora${s.opt ? ' hopt' : ''}">${s.ini}<br>${s.fim}${s.opt ? '<br><span class="hopttag">optativas</span>' : ''}</th>${cels}</tr>`;
+  }).join('');
+  return `<div class="rolax"><table class="t hgrade"><thead><tr><th style="width:86px">Horário</th>${HOR_DIAS.map(d => `<th>${d}</th>`).join('')}</tr></thead><tbody>${linhas}</tbody></table></div>`;
+}
+function horPendentesHTML(periodo, num) {
+  const ds = P.disciplinas.filter(d => +d.periodo === periodo && d.nome);
+  const faltam = ds.map(d => ({ d, prev: horAulas(d), feito: horAlocadas(d) })).filter(x => x.feito < x.prev);
+  const sobra = ds.map(d => ({ d, prev: horAulas(d), feito: horAlocadas(d) })).filter(x => x.prev && x.feito > x.prev);
+  if (!faltam.length && !sobra.length) return `<p class="g" style="margin:8px 0 0">✓ Todas as disciplinas deste período estão com as aulas distribuídas.</p>`;
+  return `${faltam.length ? `<div class="flabel" style="margin-top:10px">A distribuir <span class="muted" style="font-weight:400">arraste para a grade</span></div>
+    <div class="hpool" data-hdrop="">${faltam.map(x => `${horCartao({ id: x.d.id, t: '' }, '', num)}<span class="hfalta">faltam ${x.prev - x.feito} de ${x.prev}</span>`).join('')}</div>` : ''}
+    ${sobra.length ? `<p class="g" style="margin:8px 0 0;color:var(--err)">Aulas a mais do que a carga horária prevê: ${sobra.map(x => `${h(x.d.nome)} (${x.feito} de ${x.prev})`).join('; ')}.</p>` : ''}`;
+}
+function vHorario() {
+  const C = G.calc(P), num = G.numeracao(P);
+  if (!P.disciplinas.length) return `<h2>Horário das aulas</h2><div class="card empty">Cadastre as disciplinas primeiro, na etapa <a href="#" data-step="disc">Disciplinas</a>.</div>`;
+  const leg = P.eixos.map((e, i) => `<span class="mleg"><i style="background:${CORES[i % CORES.length][0]};border-color:${CORES[i % CORES.length][1]}"></i>Eixo ${i + 1} – ${h(e.nome || 'sem nome')}</span>`).join('')
+    + '<span class="mleg"><i style="background:#f5f5f5;border-color:#9e9e9e"></i>sem eixo</span>';
+  const grades = Array.from({ length: C.nP }, (_, i) => i + 1).map(p => `<div class="card">
+    <div class="row"><h3 style="flex:1">${p}º período</h3><span class="muted">${P.disciplinas.filter(d => +d.periodo === p && !d.optativa).length} obrigatórias · ${P.disciplinas.filter(d => +d.periodo === p && d.optativa).length} optativas</span><button class="sm ghost" data-act="horLimpar" data-p="${p}" title="Tirar da grade todas as aulas deste período">Limpar</button></div>
+    ${horGradeHTML(p, num)}
+    ${horPendentesHTML(p, num)}</div>`).join('');
+  return `<h2>Horário das aulas</h2>
+    <p class="lead">Proposta de horário a partir das disciplinas do PPC. Cada célula é uma aula de ${P.id.minutosHA || 50} minutos; <b>arraste</b> um cartão para mudar de dia ou de horário e <b>clique duas vezes</b> para abrir a disciplina. Os dois primeiros tempos, antes das 19h, são reservados às disciplinas optativas.</p>
+    <div class="card"><h3>Parâmetros do horário</h3><div class="grid">
+      ${fld('Semanas letivas no período', inp('id.semanasPeriodo', P.id.semanasPeriodo, { type: 'number', min: 1 }))}
+      ${fld('Duração da hora-aula (minutos)', inp('id.minutosHA', P.id.minutosHA, { type: 'number', min: 1 }))}
+    </div>
+    <p class="g">As aulas previstas por semana saem da carga horária de cada disciplina dividida pelas semanas letivas.</p>
+    <div class="mleglist base">${leg}</div></div>
+    ${grades}
+    <div class="row" style="gap:8px"><button class="sm ghost" data-act="horLimpar">Limpar o horário inteiro</button><button class="sm" data-act="gXlsx">Baixar a planilha (.xlsx)</button></div>`;
+}
+// arrastar e soltar na grade
+let HDRAG = null, HARRASTOU = false;
+document.addEventListener('dragstart', ev => {
+  const c = ev.target.closest && ev.target.closest('[data-hc]'); if (!c) return;
+  HDRAG = { id: c.dataset.hc, de: c.dataset.hk || '' }; HARRASTOU = true;
+  ev.dataTransfer.effectAllowed = 'move';
+  try { ev.dataTransfer.setData('text/plain', c.dataset.hc); } catch (e) { }
+  c.classList.add('drag');
+});
+document.addEventListener('dragend', ev => { const c = ev.target.closest && ev.target.closest('[data-hc]'); if (c) c.classList.remove('drag'); setTimeout(() => { HARRASTOU = false; }, 60); HDRAG = null; $$('.hcel.over').forEach(x => x.classList.remove('over')); });
+document.addEventListener('dragover', ev => {
+  const c = ev.target.closest && ev.target.closest('[data-hdrop]'); if (!c || !HDRAG) return;
+  ev.preventDefault(); $$('.hcel.over').forEach(x => x !== c && x.classList.remove('over')); c.classList.add('over');
+});
+document.addEventListener('drop', ev => {
+  const c = ev.target.closest && ev.target.closest('[data-hdrop]'); if (!c || !HDRAG) return;
+  ev.preventDefault();
+  const { id, de } = HDRAG; HDRAG = null;
+  const para = c.dataset.hdrop;
+  if (para === de) return;
+  horMover(id, de, para, '');
+  touch(true);
+});
+document.addEventListener('dblclick', ev => {
+  const c = ev.target.closest && ev.target.closest('[data-hc]'); if (!c) return;
+  ev.preventDefault(); selDisc = c.dataset.hc; go('disc');
+});
 
 // início: sempre em branco; rascunho anterior guardado para retomar
 (() => {

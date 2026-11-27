@@ -324,6 +324,13 @@ table.t.hgrade td{border:1px solid #e4e9f0;vertical-align:top;padding:3px}
 .edit ul,.edit ol{margin:0 0 8px;padding-left:24px}
 .edit img{max-width:100%;height:auto;border:1px solid var(--line);border-radius:4px}
 .edit .legfig{font-size:12px;color:var(--mut)}
+table.t.qeixo thead th{background:var(--ceixo,#fafbfc)}
+.card.eixofech{background-image:none}
+/* cada eixo com a sua cor, a mesma da matriz visual: tarja à esquerda e faixa suave no cabeçalho */
+.card.eixocard,.card.eixofech{border-left:5px solid var(--ec,#9e9e9e)}
+.card.eixocard>.row:first-child,.card.eixofech>.row{background:var(--ecbg,#f5f5f5);margin:-14px -16px 12px;padding:10px 16px;border-radius:0 10px 0 0}
+.card.eixofech>.row{margin-bottom:-10px}
+.card.eixocard>.row:first-child h3,.card.eixofech>.row h3{color:#13283f}
 
 .sobre p{margin:0 0 8px;text-align:justify}.sobre ol,.sobre ul{margin:4px 0 8px;padding-left:22px}.sobre li{margin:3px 0}
 </style>
@@ -1847,22 +1854,24 @@ window.PPCG_MODELO={"meta":{"formato":"ppc-grad","versao":1,"modelo":"Engenharia
     const h0 = H1 && H1[0] ? H1[0].partes : ['', ''];
     // rodapé: cada parágrafo do rodapé do documento vira uma linha, na mesma posição (esquerda, centro ou direita)
     const fBal = { left: [], center: [], right: [] };
+    let fTam = 0;
     (F1 || []).forEach(p => {
       const txt = p.partes.join('  ').replace(/\u0000\d?/g, '').replace(/\s+/g, ' ').trim();
-      if (!txt) return;
+      if (!txt) return;   // o parágrafo que só traz o número da página não conta para o tamanho
+      if (!fTam && +p.tam) fTam = +p.tam;
       fBal[p.jc === 'center' ? 'center' : p.jc === 'right' ? 'right' : 'left'].push(txt);
     });
-    const fTam = (F1 || []).reduce((a, p) => a || +p.tam || 0, 0) || 8;
+    fTam = fTam || 7.5;
     const fTxt = ['center', 'left', 'right'].map(k => fBal[k].join('\n')).filter(Boolean).join('\n');
     const corH = (H1 && H1[0] && H1[0].cor) || '333', corF = (F1 && F1[0] && F1[0].cor) || '333';
     const logoCab = opc.logoCabecalho || '';
     const M = '25mm'; // margens (1418 twips)
-    const margem = (nome, larg) => `@page ${nome}{size:${larg};margin:${M} ${M} 24mm ${M};
+    const margem = (nome, larg) => `@page ${nome}{size:${larg};margin:${M} ${M} 19mm ${M};
       @top-left{content:${logoCab ? `image-set(url(${logoCab}) 3x) ` : ''}${q(h0.length > 1 ? h0[0] : '')};font:8pt ${FONTE};color:#${corH};vertical-align:bottom;padding-bottom:3mm}
       @top-right{content:${q(h0[h0.length - 1])};font:${opc.moderno ? 8.5 : 10}pt ${FONTE};color:#${opc.moderno ? '64748B' : '000'};vertical-align:bottom;padding-bottom:3mm${opc.moderno ? '' : ';border-bottom:0'}}
-      @bottom-left{content:${lin(fBal.left)};white-space:pre;font:${fTam}pt ${FONTE};color:#${opc.moderno ? '64748B' : '000'};vertical-align:center;background:${FAIXA};padding:1.5mm 2mm}
-      @bottom-center{content:${lin(fBal.center)};white-space:pre;text-align:center;font:${fTam}pt ${FONTE};color:#${opc.moderno ? '64748B' : '000'};vertical-align:center;background:${FAIXA};padding:1.5mm 2mm}
-      @bottom-right{content:counter(page);font:${opc.moderno ? '700 12pt' : '10pt'} ${FONTE};color:#${opc.moderno ? '0B1F3A' : '000'};vertical-align:center;background:${FAIXA};padding:1.5mm 2mm}}`;
+      @bottom-left{content:${lin(fBal.left)};white-space:pre;font:${fTam}pt ${FONTE};color:#3a3a3a;vertical-align:center;background:${FAIXA};padding:0.8mm 1.5mm}
+      @bottom-center{content:${lin(fBal.center)};white-space:pre;text-align:center;font:${fTam}pt ${FONTE};color:#3a3a3a;vertical-align:center;background:${FAIXA};padding:0.8mm 1.5mm}
+      @bottom-right{content:counter(page);text-align:right;font:700 ${Math.max(8, fTam + 0.5)}pt ${FONTE};color:#${opc.moderno ? '0B1F3A' : '222'};vertical-align:center;background:${FAIXA};padding:0.8mm 1.5mm}}`;
     let pageCss = `@page vazio{size:A4;margin:0}\n${margem('ret', 'A4')}\n${margem('pai', 'A4 landscape')}`;
     // corpo
     let html = '';
@@ -2026,9 +2035,9 @@ thead{display:table-header-group}
 img{max-width:100%}
 ${css}
 @media screen{body{background:#e8ecf1}.pg{background:#fff;margin:12px auto;box-shadow:0 2px 12px rgba(0,0,0,.15);width:210mm;min-height:297mm;box-sizing:border-box;padding:25mm}.pg.pai{width:297mm;min-height:210mm}.pg.vazio{padding:25mm}
-.pgrod{position:absolute;left:25mm;right:25mm;bottom:8mm;display:flex;align-items:center;gap:6mm;color:#333;line-height:1.3;background:#e6e8ea;padding:1.6mm 2.5mm;border-radius:1px}
+.pgrod{position:absolute;left:25mm;right:25mm;bottom:5mm;display:flex;align-items:center;gap:5mm;color:#3a3a3a;line-height:1.25;background:#e6e8ea;padding:0.9mm 2mm}
 .pgrodt{flex:1;white-space:pre-line;text-align:center}
-.pgrodn{font-weight:700;color:#333;white-space:nowrap}
+.pgrodn{font-weight:700;color:#333;white-space:nowrap;min-width:16px;text-align:right;padding-left:4mm;border-left:.4pt solid #c8ccd2}
 .pg.vazio .pgrod{display:none}
 .barra{position:sticky;top:0;z-index:5;background:#0b1f3a;color:#fff;font:14px system-ui;padding:10px 16px;display:flex;gap:12px;align-items:center}.barra button{font:inherit;background:#13a5a8;color:#fff;border:0;border-radius:8px;padding:8px 14px;cursor:pointer}}
 @media print{.barra{display:none}.pgrod{display:none}}
@@ -2485,7 +2494,7 @@ const $$ = (s, r) => [...(r || document).querySelectorAll(s)];
 const h = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const G = window.PPCG;
 const KEY = 'ppc-grad-rascunho-v1', KEY_ANT = 'ppc-grad-rascunho-anterior';
-const VERSAO = '2.2', VERSAO_DATA = '27/11/2026', VERSAO_TAG = 'beta';
+const VERSAO = '2.3', VERSAO_DATA = '27/11/2026', VERSAO_TAG = 'beta';
 const AUTOR = { nome: 'Prof. Alexandre Rodrigues Farias', linkedin: 'https://www.linkedin.com/in/alexandre-rodrigues-farias' };
 let P = null, ISS = [], step = 'ident', selDisc = null, RASCUNHO = null;
 
@@ -2846,12 +2855,13 @@ const chipsComp = (sel, attr) => P.competencias.filter(c => c.texto.trim()).map(
 // eixos
 const EIXO_FECHADO = new Set();   // estado de tela, não vai para o arquivo do projeto
 function resumoEixosHTML(C) {
-  return (P.eixos.map((e, i) => `<tr><td>${i + 1} – ${h(e.nome || '(sem nome)')}</td><td class="c">${G.fmtH(C.porEixo[i].h)}</td><td class="c">${C.porEixo[i].ha}</td><td class="c">${C.porEixo[i].haOpt || '–'}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">Nenhum eixo cadastrado.</td></tr>')
+  return (P.eixos.map((e, i) => `<tr><td style="border-left:5px solid ${CORES[i % CORES.length][1]};background:${CORES[i % CORES.length][0]}">${i + 1} – ${h(e.nome || '(sem nome)')}</td><td class="c">${G.fmtH(C.porEixo[i].h)}</td><td class="c">${C.porEixo[i].ha}</td><td class="c">${C.porEixo[i].haOpt || '–'}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">Nenhum eixo cadastrado.</td></tr>')
     + `<tr><td style="font-weight:700">Total das disciplinas obrigatórias</td><td class="c" style="font-weight:700">${G.fmtH(C.hObr)}</td><td class="c" style="font-weight:700">${C.haObr}</td><td></td></tr>`
     + `<tr><td style="font-weight:700">Carga horária total do curso</td><td class="c" style="font-weight:700">${G.fmtH(C.hTotal)}</td><td class="c">–</td><td></td></tr>`;
 }
 // quadro das disciplinas de um eixo (obrigatórias ou optativas), com mover, editar e excluir
 function quadroEixo(e, optativa, num, C) {
+  const cq = (CORES[P.eixos.findIndex(x => x.id === e.id) % CORES.length] || CORES[0])[0];
   const lista = P.disciplinas.filter(d => d.eixoId === e.id && !!d.optativa === optativa)
     .sort((a, b) => (optativa ? 0 : (+a.periodo || 0) - (+b.periodo || 0)) || P.disciplinas.indexOf(a) - P.disciplinas.indexOf(b));
   const somaHa = lista.reduce((a, d) => a + G.haDisc(d), 0);
@@ -2882,7 +2892,7 @@ function quadroEixo(e, optativa, num, C) {
       </td></tr>`;
   }).join('');
   return `<div data-quadro="${e.id}:${optativa ? 1 : 0}"><div class="flabel" style="margin-top:12px">${optativa ? 'Disciplinas optativas do eixo' : 'Disciplinas obrigatórias do eixo'} <span class="muted" style="font-weight:400">nome, eixo, tipo, período, caráter e horas-aula se editam aqui; ementa e bibliografia, em “abrir”. O ✕ tira do eixo e não exclui a disciplina.</span></div>
-    <div class="rolax"><table class="t qeixo"><thead><tr><th style="width:74px">Nº/eixo</th><th style="min-width:160px">Disciplina</th><th style="width:140px">Eixo</th><th style="width:106px">Tipo</th><th style="width:72px">Período</th><th style="width:106px">Caráter</th><th style="width:72px">h/a teór.</th><th style="width:72px">h/a prát.</th><th style="width:70px">C.H. (h)</th><th style="width:160px"></th></tr></thead>
+    <div class="rolax"><table class="t qeixo" style="--ceixo:${cq}"><thead><tr><th style="width:74px">Nº/eixo</th><th style="min-width:160px">Disciplina</th><th style="width:140px">Eixo</th><th style="width:106px">Tipo</th><th style="width:72px">Período</th><th style="width:106px">Caráter</th><th style="width:72px">h/a teór.</th><th style="width:72px">h/a prát.</th><th style="width:70px">C.H. (h)</th><th style="width:160px"></th></tr></thead>
     <tbody>${linhas || `<tr><td colspan="10" class="muted">Nenhuma disciplina ${optativa ? 'optativa ' : ''}neste eixo.</td></tr>`}
     ${lista.length ? `<tr><td></td><td style="font-weight:700">Total</td><td colspan="4"></td><td colspan="2" class="c" style="font-weight:700" data-dtotha="${e.id}:${optativa ? 1 : 0}">${somaHa} h/a</td><td class="c" style="font-weight:700" data-dtoth="${e.id}:${optativa ? 1 : 0}">${G.fmtH(G.ha2h(somaHa, P.id.minutosHA))}</td><td></td></tr>` : ''}</tbody></table></div>
     <div class="row" style="gap:8px;margin-top:6px"><button class="sm" data-act="discAddEixo" data-id="${e.id}" data-opt="${optativa ? 1 : 0}">+ ${optativa ? 'Optativa' : 'Disciplina'} neste eixo</button>${!window.PPCG_EQUAL ? '' : `<button class="sm ghost" data-act="eqAbrir" data-p="1" data-eixo="${e.id}" data-opt="${optativa ? 1 : 0}">+ Equalizada neste eixo</button>`}</div></div>`;
@@ -2905,9 +2915,11 @@ function vEixos() {
   const cartao = (e, i) => {
     const fechado = EIXO_FECHADO.has(e.id);
     const nd = P.disciplinas.filter(d => d.eixoId === e.id).length;
+    const [cbg, cbd] = CORES[i % CORES.length];
+    const estilo = ` style="--ec:${cbd};--ecbg:${cbg}"`;
     const cab = `<div class="row"><button class="sm ghost ebtn" data-act="eixoToggle" data-id="${e.id}" title="${fechado ? 'Abrir o eixo' : 'Recolher o eixo'}">${fechado ? '▸' : '▾'}</button><h3 style="flex:1;cursor:pointer" data-act="eixoToggle" data-id="${e.id}">Eixo ${i + 1}${e.nome ? ' – ' + h(e.nome) : ''}${fechado ? ` <span class="muted" style="font-weight:400">· ${nd} disciplina(s)</span>` : ''}</h3><span class="muted" data-chEixo="${e.id}">${G.fmtH(C.porEixo[i].h)} h obrigatórias · ${C.porEixo[i].ha} h/a em disciplinas</span>${i ? `<button class="sm ghost" data-act="eixoUp" data-i="${i}" title="Subir">↑</button>` : ''}${i < P.eixos.length - 1 ? `<button class="sm ghost" data-act="eixoDown" data-i="${i}" title="Descer">↓</button>` : ''}<button class="sm ghost" data-act="eixoRm" data-id="${e.id}">Excluir</button></div>`;
-    if (fechado) return `<div class="card eixofech">${cab}</div>`;
-    return `<div class="card">${cab}
+    if (fechado) return `<div class="card eixofech"${estilo}>${cab}</div>`;
+    return `<div class="card eixocard"${estilo}>${cab}
       <label class="f"><span>Nome do eixo${RQ}</span><input data-e="${e.id}" data-f="nome" value="${h(e.nome)}"></label>
       <div class="flabel">Objetivos do eixo${RQ} <span class="muted" style="font-weight:400">um por linha</span></div><textarea data-e="${e.id}" data-f="objetivos">${h(e.objetivos)}</textarea>
       ${eng ? `<div class="flabel">Competências e habilidades desenvolvidas${RQ}</div><div class="chips" data-ebox="${e.id}:competencias">${chipsComp(e.competencias, `data-ecomp="${e.id}"`)}</div>` : ''}
@@ -3756,7 +3768,18 @@ document.addEventListener('click', ev => {
   P.disciplinas.forEach(d => { delete d._eqPre; delete d._eqCo; });
   selDisc = null; RASCUNHO = null; MX.sel = null; modal(''); touch(true); go('validar');
   toast('PPC importado. Revise as pendências: clique em cada item para ir ao campo.');
+  // o PPC importado vira um projeto novo na nuvem, sem encostar no que estava aberto antes
+  publicarNovo('O PPC importado');
 });
+// publica o projeto da tela como um PPC compartilhado novo (pid próprio), se houver conta conectada
+async function publicarNovo(oque) {
+  if (!CO.B || CO.pid) return;
+  if (!CO.user) { setTimeout(() => toast(`${oque} está só neste navegador. Entre com a sua conta em “Equipe” para guardá-lo na nuvem.`), 3400); return; }
+  try {
+    await colabCriar(true);
+    if (CO.pid) setTimeout(() => toast(`${oque} já está na nuvem, como um PPC novo na sua lista de Equipe.`), 3400);
+  } catch (e) { console.error(e); toast('Não foi possível publicar na nuvem agora; use Equipe → Compartilhar este PPC.'); }
+}
 // ---------- PDF (prévia + impressão do navegador) ----------
 let LOGO_CAB = null;
 function logoCab() {
@@ -4168,13 +4191,14 @@ document.addEventListener('click', ev => {
   colabSair(true); render();
   if (f) f();
 });
-async function colabCriar() {
+async function colabCriar(semAbrir) {
   const B = CO.B, me = chaveEmail(CO.user.email), pid = B.chave(), agora = Date.now();
   P.meta.pid = pid;
   const proj = { meta: { dono: CO.user.uid, donoEmail: CO.user.email, curso: ADAPT.curso(P), criado: agora, gerador: ADAPT.gerador }, membros: { [me]: { papel: 'dono', nome: CO.user.nome } }, dados: paraArvore(Object.assign({}, P, { anterior: P.anterior || null }), true) };
   try { await B.set(`projetos/${pid}`, proj); await B.set(`indice/${me}/${pid}`, { curso: ADAPT.curso(P), papel: 'dono', criado: agora, gerador: ADAPT.gerador }); }
   catch (e) { return toast('Não foi possível criar o PPC compartilhado: ' + e.message); }
-  await colabEntrar(pid); colabAbrir();
+  await colabEntrar(pid);
+  if (!semAbrir) colabAbrir();
 }
 document.addEventListener('click', async ev => {
   const b = ev.target.closest('[data-colab]'); if (!b) return;
@@ -4228,7 +4252,13 @@ function equipeCard() {
 
 // ---------- PPC comentado: o PPC gerado aqui, com as pendências destacadas ----------
 // ---------- PPC comentado: o próprio documento, com destaque amarelo e comentário ----------
-const CMT = { html: '', grupos: [], secoes: {}, montando: false };
+const CMT = { html: '', grupos: [], secoes: {}, montando: false, selo: '' };
+// o documento comentado é refeito sempre que o projeto muda — senão mostraria dados antigos
+function cmtSelo() {
+  if (!P || !P.id) return '';
+  return [P.meta && P.meta.criado, P.meta && P.meta.atualizado, P.id.curso, (P.disciplinas || []).length, (P.eixos || []).length, ISS.length].join('|');
+}
+function cmtInvalidar() { CMT.html = ''; CMT.grupos = []; CMT.secoes = {}; }
 const cmtPode = () => !!(P && P.id);
 const cN = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 const SEV_ROT = { erro: 'Pendência', aviso: 'Ajuste', obs: 'Observação' };
@@ -4288,7 +4318,9 @@ const CMT_CSS = `
 @keyframes cmtpulso{0%,100%{outline-color:#e0a800}50%{outline-color:rgba(224,168,0,0)}}}`;
 
 async function cmtMontar() {
-  if (CMT.html) return CMT;
+  const selo = cmtSelo();
+  if (CMT.html && CMT.selo === selo) return CMT;
+  cmtInvalidar(); CMT.selo = selo;
   const lc = await logoCab();
   const html = PPC_PDF.converter(G.gerarPPC(P, { partes: true }), { moderno: false, titulo: 'PPC comentado', barra: false, logoCabecalho: lc });
   const doc = new DOMParser().parseFromString(html, 'text/html');
@@ -4398,7 +4430,7 @@ async function cmtMontar() {
 // clique na pendência: abre o PPC comentado na posição correspondente
 window.PPC_VER_ISS = async function (k) {
   if (!cmtPode() || CMT.montando) return;
-  const g0 = CMT.html && (CMT.grupos || []).find(x => x.idx.indexOf(k) >= 0);
+  const g0 = CMT.html && CMT.selo === cmtSelo() && (CMT.grupos || []).find(x => x.idx.indexOf(k) >= 0);
   if (!g0) { CMT.montando = true; toast('Montando o PPC comentado…'); }
   try {
     await cmtMontar();
@@ -4411,7 +4443,7 @@ window.PPC_VER_ISS = async function (k) {
 // abre o PPC comentado no ponto de uma seção (usado quando não há pendências no item)
 window.PPC_VER_SECAO = async function (sec) {
   if (!cmtPode() || CMT.montando) return;
-  if (!CMT.html) { CMT.montando = true; toast('Montando o PPC comentado…'); }
+  if (!CMT.html || CMT.selo !== cmtSelo()) { CMT.montando = true; toast('Montando o PPC comentado…'); }
   try {
     await cmtMontar();
     abrirPrevia(CMT.html, 'PPC comentado', CMT.secoes[sec] || '');
@@ -4422,7 +4454,7 @@ window.PPC_COMENTADO_ABRIR = () => cmtAbrir();
 
 async function cmtAbrir() {
   if (!cmtPode() || CMT.montando) return;
-  if (!CMT.html) { CMT.montando = true; toast('Montando o PPC comentado…'); }
+  if (!CMT.html || CMT.selo !== cmtSelo()) { CMT.montando = true; toast('Montando o PPC comentado…'); }
   try { await cmtMontar(); abrirPrevia(CMT.html, 'PPC comentado — ' + (P.id.curso || 'PPC'), ''); }
   catch (e) { console.error(e); toast('Não foi possível montar o PPC comentado.'); }
   CMT.montando = false;
